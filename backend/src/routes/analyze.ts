@@ -73,6 +73,62 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/analyze/cache/entries - List cached repositories (MUST be before /:jobId routes)
+router.get('/cache/entries', (req, res) => {
+  try {
+    const stats = analysisService.getCacheStats();
+    res.json({
+      success: true,
+      entries: stats.entries || [],
+      totalEntries: stats.size || 0,
+    });
+  } catch (error) {
+    console.error('Get cache entries error:', error);
+    res.status(500).json({
+      error: 'Failed to get cache entries',
+    });
+  }
+});
+
+// DELETE /api/analyze/cache - Clear all cache
+router.delete('/cache', (req, res) => {
+  try {
+    analysisService.clearCache();
+    res.json({
+      success: true,
+      message: 'Cache cleared successfully',
+    });
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache',
+    });
+  }
+});
+
+// DELETE /api/analyze/cache/entry - Clear specific repo from cache
+router.delete('/cache/entry', (req, res) => {
+  try {
+    const { repoUrl } = req.query;
+    if (!repoUrl || typeof repoUrl !== 'string') {
+      return res.status(400).json({
+        error: 'repoUrl query parameter is required',
+      });
+    }
+    
+    analysisService.clearCacheEntry(repoUrl);
+    res.json({
+      success: true,
+      message: 'Cache entry cleared successfully',
+    });
+  } catch (error) {
+    console.error('Clear cache entry error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache entry',
+    });
+  }
+});
+
 // GET /api/analyze/status/:jobId - Get job status
 router.get('/status/:jobId', (req, res) => {
   try {
@@ -235,62 +291,6 @@ router.get('/debug/files', async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch files',
       details: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
-
-// GET /api/analyze/cache/entries - List cached repositories
-router.get('/cache/entries', (req, res) => {
-  try {
-    const stats = analysisService.getCacheStats();
-    res.json({
-      success: true,
-      entries: stats.entries || [],
-      totalEntries: stats.size || 0,
-    });
-  } catch (error) {
-    console.error('Get cache entries error:', error);
-    res.status(500).json({
-      error: 'Failed to get cache entries',
-    });
-  }
-});
-
-// DELETE /api/analyze/cache - Clear all cache
-router.delete('/cache', (req, res) => {
-  try {
-    analysisService.clearCache();
-    res.json({
-      success: true,
-      message: 'Cache cleared successfully',
-    });
-  } catch (error) {
-    console.error('Clear cache error:', error);
-    res.status(500).json({
-      error: 'Failed to clear cache',
-    });
-  }
-});
-
-// DELETE /api/analyze/cache/:repoUrl - Clear specific repo from cache
-router.delete('/cache/entry', (req, res) => {
-  try {
-    const { repoUrl } = req.query;
-    if (!repoUrl || typeof repoUrl !== 'string') {
-      return res.status(400).json({
-        error: 'repoUrl query parameter is required',
-      });
-    }
-    
-    analysisService.clearCacheEntry(repoUrl);
-    res.json({
-      success: true,
-      message: 'Cache entry cleared successfully',
-    });
-  } catch (error) {
-    console.error('Clear cache entry error:', error);
-    res.status(500).json({
-      error: 'Failed to clear cache entry',
     });
   }
 });
