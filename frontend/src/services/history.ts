@@ -55,6 +55,7 @@ export const exportPdf = (job: AnalysisJob): void => {
       c.justification.substring(0, 60) + (c.justification.length > 60 ? '...' : ''),
     ]);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (doc as any).autoTable({
       startY: 90,
       head: [['Criterion', 'Status', 'Score', 'Justification']],

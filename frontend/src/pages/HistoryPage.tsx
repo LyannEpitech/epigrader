@@ -1,13 +1,14 @@
 import { useHistory } from '../hooks/useHistory';
 import { exportPdf } from '../services/history';
 import { analysisApi } from '../services/analysis';
+import { AnalysisJob, AnalyzedCriterion } from '../types/analysis';
 import { useState } from 'react';
 import { History, Download, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
 
 export const HistoryPage = () => {
   const { history, isLoading, error, refresh } = useHistory();
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
-  const [jobDetails, setJobDetails] = useState<any>(null);
+  const [jobDetails, setJobDetails] = useState<AnalysisJob | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const handleViewDetails = async (jobId: string) => {
@@ -23,7 +24,7 @@ export const HistoryPage = () => {
     }
   };
 
-  const handleExport = (job: any) => {
+  const handleExport = (job: { jobId: string }) => {
     if (jobDetails && selectedJob === job.jobId) {
       exportPdf(jobDetails);
     }
@@ -179,7 +180,7 @@ export const HistoryPage = () => {
                     <div className="border-t pt-4">
                       <h3 className="font-medium mb-2">Criteria</h3>
                       <div className="space-y-2">
-                        {jobDetails.result.criteria.map((c: any) => (
+                        {jobDetails.result.criteria.map((c: AnalyzedCriterion) => (
                           <div
                             key={c.id}
                             className="flex justify-between items-center text-sm"
