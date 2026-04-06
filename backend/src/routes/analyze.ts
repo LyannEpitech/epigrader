@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
 import { GitHubService } from '../services/github.js';
@@ -7,7 +9,24 @@ import { AnalysisJob } from '../types/analysis.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
-const githubService = new GitHubService(process.env.GITHUB_TOKEN || 'ghp_dummy_token_for_public_repos');
+
+// Load GitHub token from .env file directly
+function loadGitHubToken(): string {
+  try {
+    const envPath = resolve(process.cwd(), '.env');
+    const envContent = readFileSync(envPath, 'utf-8');
+    const match = envContent.match(/^GITHUB_TOKEN=(.+)$/m);
+    if (match) {
+      console.log('[DEBUG] Loaded GITHUB_TOKEN from .env file');
+      return match[1].trim();
+    }
+  } catch (e) {
+    console.log('[DEBUG] Could not load GITHUB_TOKEN from .env:', e);
+  }
+  return process.env.GITHUB_TOKEN || '';
+}
+
+const githubService = new GitHubService(loadGitHubToken());
 
 const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),

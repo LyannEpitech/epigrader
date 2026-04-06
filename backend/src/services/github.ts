@@ -9,7 +9,7 @@ export class GitHubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'EpiGrader/1.0',
     };
-    if (token && token !== 'ghp_dummy_token_for_public_repos') {
+    if (token && token.startsWith('ghp_') && token.length > 10) {
       headers.Authorization = `Bearer ${token}`;
     }
     this.client = axios.create({
@@ -83,8 +83,12 @@ export class GitHubService {
       });
       return response.data.tree;
     } catch (error: any) {
-      console.error('[GitHub] getRepoTree error:', error.response?.status, error.response?.data?.message || error.message);
-      throw new Error('Failed to fetch repository tree');
+      const message = error.response?.data?.message || error.message;
+      console.error('[GitHub] getRepoTree error:', error.response?.status, message);
+      if (message.includes('SAML')) {
+        throw new Error('SAML SSO required. Visit https://github.com/orgs/EpitechBachelorPromo2028/sso to authorize your PAT');
+      }
+      throw new Error('Failed to fetch repository tree: ' + message);
     }
   }
 

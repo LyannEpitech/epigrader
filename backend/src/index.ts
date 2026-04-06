@@ -1,12 +1,30 @@
+import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Load .env file manually to ensure it's loaded before any other imports
+try {
+  const envPath = resolve(process.cwd(), '.env');
+  const envContent = readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2];
+    }
+  });
+  console.log('[DEBUG] Loaded .env file from:', envPath);
+} catch (e) {
+  console.log('[DEBUG] Could not load .env file:', e);
+}
+
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import rubricRoutes from './routes/rubric.js';
 import analyzeRoutes from './routes/analyze.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,8 +50,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/rubric', rubricRoutes);
 app.use('/api/analyze', analyzeRoutes);
-// app.use('/api/analyze', analyzeRoutes);
-// app.use('/api/report', reportRoutes);
 
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
