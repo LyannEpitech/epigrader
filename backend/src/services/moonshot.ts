@@ -79,6 +79,36 @@ export class MoonshotService {
   }
 
   /**
+   * Compress file content by removing unnecessary whitespace and comments
+   */
+  private compressContent(content: string, filePath: string): string {
+    // Don't compress binary or data files
+    if (filePath.match(/\.(json|xml|yaml|yml|md|txt|csv)$/i)) {
+      return content;
+    }
+    
+    // Remove C-style comments (/* */ and //)
+    let compressed = content
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
+      .replace(/\/\/.*$/gm, '') // Remove // comments
+      .replace(/#.*$/gm, '') // Remove # comments (Python, shell)
+      .replace(/<!--[\s\S]*?-->/g, ''); // Remove HTML comments
+    
+    // Remove extra whitespace but preserve structure
+    compressed = compressed
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0) // Remove empty lines
+      .join('\n');
+    
+    // Limit consecutive empty lines to 1 (already done above)
+    // Remove trailing whitespace
+    compressed = compressed.replace(/[ \t]+$/gm, '');
+    
+    return compressed;
+  }
+
+  /**
    * Group files by their directory
    */
   private groupFilesByDirectory(
@@ -116,10 +146,13 @@ export class MoonshotService {
         fileContents += `## Directory: ${dir}/\n`;
       }
       for (const f of files) {
+        // Compress content to fit more data
+        const compressed = this.compressContent(f.content, f.path);
+        
         // Limit content per file to avoid exceeding LLM context (max ~100k chars total)
         const remainingChars = 100000 - fileContents.length;
-        const contentToAdd = f.content.substring(0, Math.min(5000, remainingChars));
-        fileContents += `--- ${f.path} ---\n${contentToAdd}\n\n`;
+        const contentToAdd = compressed.substring(0, Math.min(8000, remainingChars));
+        fileContents += `--- ${f.path} (${compressed.length} chars) ---\n${contentToAdd}\n\n`;
         if (fileContents.length >= 100000) break;
       }
     }

@@ -138,9 +138,9 @@ export const AnalyzePage = () => {
             )}
             
             {/* Analysis Steps */}
-            {job && job.status === 'processing' && job.steps && job.steps.length > 0 && (
+            {job && job.steps && job.steps.length > 0 && (
               <div className="mt-6 border-t pt-4">
-                <AnalysisSteps steps={job.steps} />
+                <AnalysisSteps steps={job.steps} currentStatus={job.status} />
               </div>
             )}
           </div>
