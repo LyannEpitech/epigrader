@@ -56,7 +56,11 @@ export class GitHubService {
           throw new Error('Repository not found');
         }
         if (error.response?.status === 403) {
-          throw new Error('Access denied');
+          const message = error.response?.data?.message || '';
+          if (message.includes('SAML')) {
+            throw new Error('SAML SSO required: ' + message);
+          }
+          throw new Error('Access denied: ' + message);
         }
       }
       throw error;

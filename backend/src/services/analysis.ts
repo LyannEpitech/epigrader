@@ -96,7 +96,7 @@ export class AnalysisService {
       // Step 1: Validate Configuration
       addStep('Configuration', 'running', 'Validating environment...');
       
-      const hasGitHubToken = !!process.env.GITHUB_TOKEN && process.env.GITHUB_TOKEN !== 'ghp_dummy_token_for_public_repos';
+      const hasGitHubToken = !!githubToken && githubToken.length > 10;
       const hasMoonshotKey = !!process.env.MOONSHOT_API_KEY;
       
       if (!hasGitHubToken) {
@@ -117,9 +117,11 @@ export class AnalysisService {
       try {
         githubUser = await githubService.validateToken();
         addStep('GitHub Authentication', 'completed', `✅ Connected as ${githubUser.login}`);
-      } catch (error) {
+      } catch (error: any) {
+        const errorMessage = error.message || 'Unknown error';
         if (hasGitHubToken) {
-          addStep('GitHub Authentication', 'error', '❌ GitHub PAT invalid or expired. Check your token.');
+          addStep('GitHub Authentication', 'error', `❌ GitHub PAT invalid: ${errorMessage}`);
+          // Don't throw here, let it continue and fail later with better error context
         } else {
           addStep('GitHub Authentication', 'completed', '⚠️ Using unauthenticated access (60 req/hour limit)');
         }
@@ -156,12 +158,15 @@ export class AnalysisService {
         const repoInfo = await githubService.getRepo(owner, repo);
         addStep('Repository Info', 'completed', `✅ ${repoInfo.stargazers_count} ⭐ | ${repoInfo.language || 'Unknown language'} | Default branch: ${repoInfo.default_branch}`);
       } catch (error: any) {
-        if (error.message?.includes('404')) {
+        const message = error.message || 'Unknown error';
+        if (message.includes('404')) {
           addStep('Repository Info', 'error', '❌ Repository not found or private');
-        } else if (error.message?.includes('SAML')) {
+        } else if (message.includes('SAML')) {
           addStep('Repository Info', 'error', '❌ SAML SSO required. Authorize your PAT at https://github.com/orgs/EpitechBachelorPromo2028/sso');
+        } else if (message.includes('Access denied') || message.includes('403')) {
+          addStep('Repository Info', 'error', '❌ Access denied. Your PAT may not have access to this repository or SAML SSO authorization is required.');
         } else {
-          addStep('Repository Info', 'error', `❌ ${error.message}`);
+          addStep('Repository Info', 'error', `❌ ${message}`);
         }
         throw error;
       }
