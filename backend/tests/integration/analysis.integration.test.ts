@@ -62,5 +62,37 @@ describe('AnalysisService Integration', () => {
       checkJob = service.getJob(job.id);
       expect(['processing', 'completed', 'error']).toContain(checkJob?.status);
     });
+
+    it('should handle URL with .git suffix', async () => {
+      const criteria: Criterion[] = [
+        { id: '1', name: 'Test', description: 'Test', maxPoints: 5 },
+      ];
+
+      const job = service.createJob('https://github.com/Epitech/test-repo.git', 'rubric-1', criteria);
+
+      expect(job.repoUrl).toBe('https://github.com/Epitech/test-repo.git');
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updatedJob = service.getJob(job.id);
+      expect(updatedJob).toBeDefined();
+    });
+
+    it('should handle various GitHub URL formats', async () => {
+      const testUrls = [
+        'https://github.com/user/repo',
+        'https://github.com/user-name/repo-name',
+        'https://github.com/user123/repo456',
+      ];
+
+      for (const url of testUrls) {
+        const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+        const job = service.createJob(url, 'rubric-1', criteria);
+        
+        expect(job.repoUrl).toBe(url);
+        
+        // Clean up
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    });
   });
 });
