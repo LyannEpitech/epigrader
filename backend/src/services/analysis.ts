@@ -6,6 +6,9 @@ import { GitHubService } from './github.js';
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
 
+// Maximum number of jobs to keep in memory
+const MAX_JOBS = 100;
+
 export class AnalysisService {
   private moonshotService: MoonshotService;
   private githubService: GitHubService;
@@ -177,6 +180,32 @@ export class AnalysisService {
    */
   private generateJobId(): string {
     return `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get all jobs (for history)
+   */
+  getAllJobs(): AnalysisJob[] {
+    return Array.from(jobs.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  /**
+   * Get recent jobs with limit
+   */
+  getRecentJobs(limit: number = 10): AnalysisJob[] {
+    return this.getAllJobs().slice(0, limit);
+  }
+
+  /**
+   * Clean up old jobs to prevent memory leaks
+   */
+  private cleanupOldJobs(): void {
+    if (jobs.size > MAX_JOBS) {
+      const sortedJobs = this.getAllJobs();
+      const jobsToRemove = sortedJobs.slice(MAX_JOBS);
+      jobsToRemove.forEach(job => jobs.delete(job.id));
+    }
   }
 }
 
