@@ -2,8 +2,8 @@ import axios from 'axios';
 import { AnalyzedCriterion } from '../types/analysis.js';
 import { Criterion } from '../types/rubric.js';
 
-const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
-const API_KEY = process.env.MOONSHOT_API_KEY || '';
+const MOONSHOT_API_URL = 'https://api.moonshot.ai/v1/chat/completions';
+const API_KEY = process.env.MOONSHOT_API_KEY || 'sk-3wnoZ7hg9ZDaR42aWt88JIyzgNw3XU1QZ2We8tPBlPA4MumV';
 
 export class MoonshotService {
   /**

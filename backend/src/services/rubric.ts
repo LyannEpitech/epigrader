@@ -1,8 +1,8 @@
 import { Criterion } from '../types/rubric.js';
 import axios from 'axios';
 
-const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
-const API_KEY = process.env.MOONSHOT_API_KEY || '';
+const MOONSHOT_API_URL = 'https://api.moonshot.ai/v1/chat/completions';
+const API_KEY = process.env.MOONSHOT_API_KEY || 'sk-3wnoZ7hg9ZDaR42aWt88JIyzgNw3XU1QZ2We8tPBlPA4MumV';
 
 export class RubricService {
   /**
@@ -12,19 +12,30 @@ export class RubricService {
     // Quick regex parse for simple markdown (fast path)
     const quickParse = this.quickParse(content);
     if (quickParse.length > 0) {
+      console.log(`[Rubric] Quick parse found ${quickParse.length} criteria`);
       return quickParse;
     }
 
     // Use LLM for complex or unstructured formats
-    if (API_KEY && content.length > 10) {
-      try {
-        return await this.parseWithLLM(content);
-      } catch (error) {
-        console.warn('LLM parsing failed:', error);
-      }
+    if (!API_KEY) {
+      console.warn('[Rubric] No API key, skipping LLM parse');
+      return [];
     }
 
-    return [];
+    if (content.length <= 10) {
+      console.warn('[Rubric] Content too short');
+      return [];
+    }
+
+    try {
+      console.log('[Rubric] Using LLM parse...');
+      const result = await this.parseWithLLM(content);
+      console.log(`[Rubric] LLM returned ${result.length} criteria`);
+      return result;
+    } catch (error) {
+      console.error('[Rubric] LLM parsing failed:', error);
+      return [];
+    }
   }
 
   /**
@@ -127,13 +138,22 @@ Return valid JSON array only, no markdown, no explanation.`;
    */
   private extractJSON(text: string): Criterion[] {
     try {
+      console.log('[Rubric] LLM raw response:', text.substring(0, 200));
+      
       // Find JSON array in response
       const match = text.match(/\[[\s\S]*\]/);
-      if (!match) return [];
+      if (!match) {
+        console.warn('[Rubric] No JSON array found in response');
+        return [];
+      }
 
       const parsed = JSON.parse(match[0]);
-      if (!Array.isArray(parsed)) return [];
+      if (!Array.isArray(parsed)) {
+        console.warn('[Rubric] Parsed content is not an array');
+        return [];
+      }
 
+      console.log(`[Rubric] Extracted ${parsed.length} items from JSON`);
       return parsed.map((item: any, i: number) => ({
         id: String(i + 1),
         name: String(item.name || 'Unnamed'),
@@ -141,7 +161,7 @@ Return valid JSON array only, no markdown, no explanation.`;
         description: String(item.description || ''),
       }));
     } catch (e) {
-      console.error('JSON parse error:', e);
+      console.error('[Rubric] JSON parse error:', e);
       return [];
     }
   }
