@@ -53,8 +53,8 @@ export const useAnalysis = (): UseAnalysisReturn => {
         clearInterval(intervalRef.current);
       }
 
-      // Get PAT from localStorage if available
-      const pat = localStorage.getItem('github_pat') || undefined;
+      // Get PAT from sessionStorage if available
+      const pat = sessionStorage.getItem('github_pat') || undefined;
       
       const response = await analysisApi.startAnalysis(repoUrl, rubricId, pat);
       
