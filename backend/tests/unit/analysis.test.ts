@@ -20,7 +20,6 @@ describe('AnalysisService', () => {
       expect(job.repoUrl).toBe('https://github.com/test/repo');
       expect(job.rubricId).toBe('rubric-1');
       expect(job.id).toBeDefined();
-      // Status may be 'pending' or 'processing' depending on timing
       expect(['pending', 'processing']).toContain(job.status);
     });
 

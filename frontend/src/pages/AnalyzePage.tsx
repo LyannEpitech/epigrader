@@ -156,7 +156,7 @@ export const AnalyzePage = () => {
                 <p className="text-gray-600">{job.result.globalComment}</p>
 
                 <div className="space-y-3">
-                  {job.result.criteria.map((criterion, index) => (
+                  {job.result.criteria.map((criterion) => (
                     <div
                       key={criterion.id}
                       className="border rounded-lg p-4"
