@@ -53,15 +53,25 @@ jobs:
       # Backend Coverage - Base Branch
       - name: Run backend tests on base branch
         run: |
-          cd backend && npm ci && npm run test:coverage || true
           mkdir -p /tmp/base-coverage
-          cp coverage/coverage-summary.json /tmp/base-coverage/backend.json 2>/dev/null || echo '{"total":{"lines":{"pct":0},"functions":{"pct":0},"branches":{"pct":0},"statements":{"pct":0}}}' > /tmp/base-coverage/backend.json
+          if [ -f "backend/package.json" ]; then
+            cd backend && npm ci 2>/dev/null && npm run test:coverage 2>/dev/null || true
+            cp coverage/coverage-summary.json /tmp/base-coverage/backend.json 2>/dev/null || true
+          fi
+          if [ ! -f "/tmp/base-coverage/backend.json" ]; then
+            echo '{"total":{"lines":{"pct":0},"functions":{"pct":0},"branches":{"pct":0},"statements":{"pct":0}}}' > /tmp/base-coverage/backend.json
+          fi
 
       # Frontend Coverage - Base Branch
       - name: Run frontend tests on base branch
         run: |
-          cd frontend && npm ci && npm run test:coverage || true
-          cp coverage/coverage-summary.json /tmp/base-coverage/frontend.json 2>/dev/null || echo '{"total":{"lines":{"pct":0},"functions":{"pct":0},"branches":{"pct":0},"statements":{"pct":0}}}' > /tmp/base-coverage/frontend.json
+          if [ -f "frontend/package.json" ]; then
+            cd frontend && npm ci 2>/dev/null && npm run test:coverage 2>/dev/null || true
+            cp coverage/coverage-summary.json /tmp/base-coverage/frontend.json 2>/dev/null || true
+          fi
+          if [ ! -f "/tmp/base-coverage/frontend.json" ]; then
+            echo '{"total":{"lines":{"pct":0},"functions":{"pct":0},"branches":{"pct":0},"statements":{"pct":0}}}' > /tmp/base-coverage/frontend.json
+          fi
 
       # Post PR Comment
       - name: Post Coverage Comment
