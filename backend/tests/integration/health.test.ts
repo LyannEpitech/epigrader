@@ -17,5 +17,6 @@ describe('Health Check', () => {
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');
     expect(response.body.timestamp).toBeDefined();
+    expect(response.body.version).toBeDefined();
   });
 });

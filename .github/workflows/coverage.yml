@@ -74,20 +74,20 @@ jobs:
             ### Backend
             | Metric | Coverage | Threshold | Status |
             |--------|----------|-----------|--------|
-            | Lines | ${formatPct(backendCoverage.lines?.pct)} | 30% | ${(backendCoverage.lines?.pct || 0) >= 30 ? '✅' : '❌'} |
-            | Functions | ${formatPct(backendCoverage.functions?.pct)} | 30% | ${(backendCoverage.functions?.pct || 0) >= 30 ? '✅' : '❌'} |
-            | Branches | ${formatPct(backendCoverage.branches?.pct)} | 30% | ${(backendCoverage.branches?.pct || 0) >= 30 ? '✅' : '❌'} |
-            | Statements | ${formatPct(backendCoverage.statements?.pct)} | 30% | ${(backendCoverage.statements?.pct || 0) >= 30 ? '✅' : '❌'} |
+            | Lines | ${formatPct(backendCoverage.lines?.pct)} | 70% | ${(backendCoverage.lines?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Functions | ${formatPct(backendCoverage.functions?.pct)} | 70% | ${(backendCoverage.functions?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Branches | ${formatPct(backendCoverage.branches?.pct)} | 70% | ${(backendCoverage.branches?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Statements | ${formatPct(backendCoverage.statements?.pct)} | 70% | ${(backendCoverage.statements?.pct || 0) >= 70 ? '✅' : '❌'} |
             
             ### Frontend
             | Metric | Coverage | Threshold | Status |
             |--------|----------|-----------|--------|
-            | Lines | ${formatPct(frontendCoverage.lines?.pct)} | 50% | ${(frontendCoverage.lines?.pct || 0) >= 50 ? '✅' : '❌'} |
-            | Functions | ${formatPct(frontendCoverage.functions?.pct)} | 50% | ${(frontendCoverage.functions?.pct || 0) >= 50 ? '✅' : '❌'} |
-            | Branches | ${formatPct(frontendCoverage.branches?.pct)} | 30% | ${(frontendCoverage.branches?.pct || 0) >= 30 ? '✅' : '❌'} |
-            | Statements | ${formatPct(frontendCoverage.statements?.pct)} | 50% | ${(frontendCoverage.statements?.pct || 0) >= 50 ? '✅' : '❌'} |
+            | Lines | ${formatPct(frontendCoverage.lines?.pct)} | 70% | ${(frontendCoverage.lines?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Functions | ${formatPct(frontendCoverage.functions?.pct)} | 70% | ${(frontendCoverage.functions?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Branches | ${formatPct(frontendCoverage.branches?.pct)} | 70% | ${(frontendCoverage.branches?.pct || 0) >= 70 ? '✅' : '❌'} |
+            | Statements | ${formatPct(frontendCoverage.statements?.pct)} | 70% | ${(frontendCoverage.statements?.pct || 0) >= 70 ? '✅' : '❌'} |
             
-            ${((backendCoverage.lines?.pct || 0) < 30 || (frontendCoverage.lines?.pct || 0) < 50) ? '⚠️ **Coverage below threshold!**' : '✅ **All coverage thresholds met!**'}
+            ${((backendCoverage.lines?.pct || 0) < 70 || (frontendCoverage.lines?.pct || 0) < 70) ? '⚠️ **Coverage below threshold!**' : '✅ **All coverage thresholds met!**'}
             `;
             
             // Find existing comment

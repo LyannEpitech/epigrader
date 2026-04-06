@@ -5,7 +5,7 @@ import { GitHubService } from '../services/github.js';
 const router = Router();
 
 const validateTokenSchema = z.object({
-  token: z.string().min(1, 'Token is required'),
+  token: z.string().min(1, 'Token is required').trim(),
 });
 
 router.post('/validate-token', async (req, res) => {
