@@ -1,0 +1,112 @@
+import axios, { AxiosInstance } from 'axios';
+import { GitHubUser, GitHubRepo, TreeItem, GitHubCommit } from '../types/github.js';
+
+export class GitHubService {
+  private client: AxiosInstance;
+
+  constructor(private token: string) {
+    this.client = axios.create({
+      baseURL: 'https://api.github.com',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'EpiGrader/1.0',
+      },
+    });
+
+    // Add rate limit monitoring
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 403 && error.response?.headers['x-ratelimit-remaining'] === '0') {
+          const resetTime = error.response.headers['x-ratelimit-reset'];
+          const waitMs = (parseInt(resetTime) * 1000) - Date.now();
+          console.warn(`[GitHub] Rate limit exceeded. Reset in ${Math.ceil(waitMs / 1000)}s`);
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  async validateToken(): Promise<GitHubUser> {
+    try {
+      const response = await this.client.get('/user');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          throw new Error('Invalid token');
+        }
+        throw new Error(`GitHub API error: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  async getRepo(owner: string, repo: string): Promise<GitHubRepo> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          throw new Error('Repository not found');
+        }
+        if (error.response?.status === 403) {
+          throw new Error('Access denied');
+        }
+      }
+      throw error;
+    }
+  }
+
+  async getFileContent(owner: string, repo: string, path: string): Promise<string> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/contents/${path}`);
+      const content = response.data.content;
+      return Buffer.from(content, 'base64').toString('utf-8');
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        throw new Error('File not found');
+      }
+      throw error;
+    }
+  }
+
+  async getRepoTree(owner: string, repo: string, sha: string = 'HEAD'): Promise<TreeItem[]> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/git/trees/${sha}`, {
+        params: { recursive: 1 },
+      });
+      return response.data.tree;
+    } catch (error) {
+      throw new Error('Failed to fetch repository tree');
+    }
+  }
+
+  async getCommits(owner: string, repo: string, limit: number = 30): Promise<GitHubCommit[]> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/commits`, {
+        params: { per_page: limit },
+      });
+      return response.data.map((commit: any) => ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        author: commit.commit.author,
+        committer: commit.commit.committer,
+      }));
+    } catch (error) {
+      throw new Error('Failed to fetch commits');
+    }
+  }
+
+  parseRepoUrl(url: string): { owner: string; repo: string } {
+    const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    if (!match) {
+      throw new Error('Invalid GitHub URL');
+    }
+    return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+  }
+}
+
+export default GitHubService;

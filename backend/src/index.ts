@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
 
 dotenv.config();
 
@@ -25,8 +26,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes (à ajouter)
-// app.use('/api/auth', authRoutes);
+// Routes
+app.use('/api/auth', authRoutes);
 // app.use('/api/rubric', rubricRoutes);
 // app.use('/api/analyze', analyzeRoutes);
 // app.use('/api/report', reportRoutes);
