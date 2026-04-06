@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
 import { GitHubService } from '../services/github.js';
+import { AnalysisJob } from '../types/analysis.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
@@ -85,15 +86,16 @@ router.get('/status/:jobId', (req, res) => {
 router.get('/history', (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
-    const jobs = analysisService.getRecentJobs(limit);
+    const jobs = analysisService.getAllJobs().slice(0, limit);
 
     res.json({
-      jobs: jobs.map(job => ({
+      jobs: jobs.map((job: AnalysisJob) => ({
         jobId: job.id,
         repoUrl: job.repoUrl,
         rubricId: job.rubricId,
         status: job.status,
         progress: job.progress,
+        steps: job.steps,
         totalScore: job.result?.totalScore,
         maxScore: job.result?.maxScore,
         createdAt: job.createdAt,
