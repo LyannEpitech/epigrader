@@ -64,5 +64,46 @@ describe('MoonshotService', () => {
       const result = await service.analyzeCriterion(criterion, repoFiles);
       expect(result.id).toBe('3');
     });
+
+    it('should handle all score ranges', async () => {
+      const testCases = [
+        { maxPoints: 5 },
+        { maxPoints: 10 },
+        { maxPoints: 20 },
+      ];
+
+      for (const testCase of testCases) {
+        const criterion: Criterion = {
+          id: `test-${testCase.maxPoints}`,
+          name: 'Test',
+          description: 'Test',
+          maxPoints: testCase.maxPoints,
+        };
+
+        const result = await service.analyzeCriterion(criterion, []);
+        expect(result.maxPoints).toBe(testCase.maxPoints);
+        expect(result.score).toBeGreaterThanOrEqual(0);
+        expect(result.score).toBeLessThanOrEqual(testCase.maxPoints);
+      }
+    });
+
+    it('should handle multiple files', async () => {
+      const criterion: Criterion = {
+        id: 'multi',
+        name: 'Multi File Test',
+        description: 'Test with multiple files',
+        maxPoints: 10,
+      };
+
+      const repoFiles = [
+        { path: 'main.c', content: 'int main() {}' },
+        { path: 'helper.c', content: 'void helper() {}' },
+        { path: 'header.h', content: '#define TEST 1' },
+      ];
+
+      const result = await service.analyzeCriterion(criterion, repoFiles);
+      expect(result.id).toBe('multi');
+      expect(result.name).toBe('Multi File Test');
+    });
   });
 });

@@ -49,4 +49,48 @@ describe('AnalysisService', () => {
       expect(found).toBeUndefined();
     });
   });
+
+  describe('getAllJobs', () => {
+    it('should return all jobs sorted by date', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      
+      // Create multiple jobs
+      const job1 = service.createJob('https://github.com/user/repo1', 'rubric-1', criteria);
+      const job2 = service.createJob('https://github.com/user/repo2', 'rubric-1', criteria);
+      const job3 = service.createJob('https://github.com/user/repo3', 'rubric-1', criteria);
+
+      const allJobs = service.getAllJobs();
+      
+      expect(allJobs.length).toBeGreaterThanOrEqual(3);
+      expect(allJobs[0].id).toBe(job3.id); // Most recent first
+    });
+  });
+
+  describe('getRecentJobs', () => {
+    it('should return limited number of jobs', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      
+      // Create multiple jobs
+      for (let i = 0; i < 5; i++) {
+        service.createJob(`https://github.com/user/repo${i}`, 'rubric-1', criteria);
+      }
+
+      const recentJobs = service.getRecentJobs(3);
+      
+      expect(recentJobs.length).toBeLessThanOrEqual(3);
+    });
+
+    it('should use default limit of 10', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      
+      // Create multiple jobs
+      for (let i = 0; i < 15; i++) {
+        service.createJob(`https://github.com/user/repo${i}`, 'rubric-1', criteria);
+      }
+
+      const recentJobs = service.getRecentJobs();
+      
+      expect(recentJobs.length).toBeLessThanOrEqual(10);
+    });
+  });
 });

@@ -3,6 +3,8 @@ import { useGitHubAuth } from './hooks/useGitHubAuth';
 import { AuthPage } from './pages/AuthPage';
 import { RubricPage } from './pages/RubricPage';
 import { AnalyzePage } from './pages/AnalyzePage';
+import { HistoryPage } from './pages/HistoryPage';
+import { DashboardPage } from './pages/DashboardPage';
 import './App.css';
 
 function App() {
@@ -17,7 +19,7 @@ function App() {
         />
         <Route 
           path="/" 
-          element={isAuthenticated ? <Navigate to="/rubric" /> : <Navigate to="/auth" />} 
+          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/auth" />} 
         />
         <Route 
           path="/rubric" 
@@ -26,6 +28,10 @@ function App() {
         <Route 
           path="/analyze" 
           element={isAuthenticated ? <AnalyzePage /> : <Navigate to="/auth" />} 
+        />
+        <Route 
+          path="/history" 
+          element={isAuthenticated ? <HistoryPage /> : <Navigate to="/auth" />} 
         />
       </Routes>
     </Router>

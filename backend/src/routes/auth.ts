@@ -36,7 +36,7 @@ router.post('/validate-token', async (req, res) => {
     });
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === 'Invalid token') {
+      if (error.message === 'Invalid token' || error.message.includes('GitHub API error')) {
         return res.status(401).json({
           valid: false,
           error: 'Invalid GitHub token',

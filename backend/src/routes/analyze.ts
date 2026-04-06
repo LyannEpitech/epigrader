@@ -79,4 +79,32 @@ router.get('/status/:jobId', (req, res) => {
   }
 });
 
+// GET /api/analyze/history - Get analysis history
+router.get('/history', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const jobs = analysisService.getRecentJobs(limit);
+
+    res.json({
+      jobs: jobs.map(job => ({
+        jobId: job.id,
+        repoUrl: job.repoUrl,
+        rubricId: job.rubricId,
+        status: job.status,
+        progress: job.progress,
+        totalScore: job.result?.totalScore,
+        maxScore: job.result?.maxScore,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      })),
+      total: jobs.length,
+    });
+  } catch (error) {
+    console.error('Get history error:', error);
+    res.status(500).json({
+      error: 'Failed to get analysis history',
+    });
+  }
+});
+
 export default router;
