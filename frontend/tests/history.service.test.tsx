@@ -1,5 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-import { AnalysisJob } from '../src/types/analysis';
+import { describe, it, expect } from 'vitest';
 
 describe('exportPdf', () => {
   it('should be defined', () => {

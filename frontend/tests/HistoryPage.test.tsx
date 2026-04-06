@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { HistoryPage } from '../src/pages/HistoryPage';
 import { useHistory } from '../src/hooks/useHistory';
 import { analysisApi } from '../src/services/analysis';
-import { exportPdf } from '../src/services/history';
 
 vi.mock('../src/hooks/useHistory', () => ({
   useHistory: vi.fn(),
