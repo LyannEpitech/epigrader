@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useGitHubAuth } from '../src/hooks/useGitHubAuth';
 import { authApi, storage } from '../src/services/auth';
 
@@ -25,8 +25,8 @@ describe('useGitHubAuth', () => {
   });
 
   it('should initialize with no auth when no stored token', () => {
-    (storage.getToken as any).mockReturnValue(null);
-    (storage.getUser as any).mockReturnValue(null);
+    vi.mocked(storage.getToken).mockReturnValue(null);
+    vi.mocked(storage.getUser).mockReturnValue(null);
 
     const { result } = renderHook(() => useGitHubAuth());
 
@@ -37,8 +37,8 @@ describe('useGitHubAuth', () => {
 
   it('should initialize with auth when token exists', () => {
     const mockUser = { id: 1, login: 'testuser', name: 'Test', email: null, avatar_url: '', html_url: '' };
-    (storage.getToken as any).mockReturnValue('valid_token');
-    (storage.getUser as any).mockReturnValue(mockUser);
+    vi.mocked(storage.getToken).mockReturnValue('valid_token');
+    vi.mocked(storage.getUser).mockReturnValue(mockUser);
 
     const { result } = renderHook(() => useGitHubAuth());
 
@@ -49,9 +49,9 @@ describe('useGitHubAuth', () => {
 
   it('should login successfully', async () => {
     const mockUser = { id: 1, login: 'testuser', name: 'Test', email: null, avatar_url: '', html_url: '' };
-    (authApi.validateToken as any).mockResolvedValue({ valid: true, user: mockUser });
-    (storage.getToken as any).mockReturnValue(null);
-    (storage.getUser as any).mockReturnValue(null);
+    vi.mocked(authApi.validateToken).mockResolvedValue({ valid: true, user: mockUser });
+    vi.mocked(storage.getToken).mockReturnValue(null);
+    vi.mocked(storage.getUser).mockReturnValue(null);
 
     const { result } = renderHook(() => useGitHubAuth());
 
@@ -68,9 +68,9 @@ describe('useGitHubAuth', () => {
   });
 
   it('should handle login failure', async () => {
-    (authApi.validateToken as any).mockResolvedValue({ valid: false, error: 'Invalid token' });
-    (storage.getToken as any).mockReturnValue(null);
-    (storage.getUser as any).mockReturnValue(null);
+    vi.mocked(authApi.validateToken).mockResolvedValue({ valid: false, error: 'Invalid token' });
+    vi.mocked(storage.getToken).mockReturnValue(null);
+    vi.mocked(storage.getUser).mockReturnValue(null);
 
     const { result } = renderHook(() => useGitHubAuth());
 
@@ -86,8 +86,8 @@ describe('useGitHubAuth', () => {
 
   it('should logout successfully', async () => {
     const mockUser = { id: 1, login: 'testuser', name: 'Test', email: null, avatar_url: '', html_url: '' };
-    (storage.getToken as any).mockReturnValue('token');
-    (storage.getUser as any).mockReturnValue(mockUser);
+    vi.mocked(storage.getToken).mockReturnValue('token');
+    vi.mocked(storage.getUser).mockReturnValue(mockUser);
 
     const { result } = renderHook(() => useGitHubAuth());
 
@@ -102,9 +102,9 @@ describe('useGitHubAuth', () => {
   });
 
   it('should clear error on logout', async () => {
-    (authApi.validateToken as any).mockResolvedValue({ valid: false, error: 'Invalid token' });
-    (storage.getToken as any).mockReturnValue(null);
-    (storage.getUser as any).mockReturnValue(null);
+    vi.mocked(authApi.validateToken).mockResolvedValue({ valid: false, error: 'Invalid token' });
+    vi.mocked(storage.getToken).mockReturnValue(null);
+    vi.mocked(storage.getUser).mockReturnValue(null);
 
     const { result } = renderHook(() => useGitHubAuth());
 

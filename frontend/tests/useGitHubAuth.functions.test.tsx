@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useGitHubAuth } from '../src/hooks/useGitHubAuth';
-import { authApi, storage } from '../src/services/auth';
+import { storage } from '../src/services/auth';
 
 vi.mock('../src/services/auth', () => ({
   authApi: { validateToken: vi.fn() },
@@ -18,8 +18,8 @@ vi.mock('../src/services/auth', () => ({
 
 describe('useGitHubAuth functions coverage', () => {
   it('should expose all functions', () => {
-    (storage.getToken as any).mockReturnValue(null);
-    (storage.getUser as any).mockReturnValue(null);
+    vi.mocked(storage.getToken).mockReturnValue(null);
+    vi.mocked(storage.getUser).mockReturnValue(null);
 
     const { result } = renderHook(() => useGitHubAuth());
 

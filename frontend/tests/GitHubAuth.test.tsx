@@ -5,12 +5,12 @@ import { useGitHubAuth } from '../src/hooks/useGitHubAuth';
 
 // Mock the hook
 vi.mock('../src/hooks/useGitHubAuth', () => ({
-  useGitHubAuth: vi.fn(),
+  useGitHubAuth: vi.fn<() => ReturnType<typeof useGitHubAuth>>(),
 }));
 
 describe('GitHubAuth', () => {
   it('renders login form when not authenticated', () => {
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -26,7 +26,7 @@ describe('GitHubAuth', () => {
   });
 
   it('shows user info when authenticated', () => {
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: true,
       user: {
         login: 'testuser',
@@ -48,7 +48,7 @@ describe('GitHubAuth', () => {
 
   it('calls login with token when form submitted', async () => {
     const mockLogin = vi.fn().mockResolvedValue(true);
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -70,7 +70,7 @@ describe('GitHubAuth', () => {
   });
 
   it('displays error message when error exists', () => {
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
       error: 'Invalid token',
@@ -84,7 +84,7 @@ describe('GitHubAuth', () => {
   });
 
   it('shows loading state', () => {
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: false,
       isLoading: true,
       error: null,
@@ -98,7 +98,7 @@ describe('GitHubAuth', () => {
   });
 
   it('toggles password visibility', () => {
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -119,7 +119,7 @@ describe('GitHubAuth', () => {
 
   it('calls logout when logout button clicked', () => {
     const mockLogout = vi.fn();
-    (useGitHubAuth as any).mockReturnValue({
+    vi.mocked(useGitHubAuth).mockReturnValue({
       isAuthenticated: true,
       user: {
         login: 'testuser',

@@ -42,7 +42,7 @@ describe('auth service functions', () => {
     storage.getUser();
     expect(storage.getUser).toHaveBeenCalled();
     
-    storage.setUser({} as any);
+    storage.setUser({ id: 1, login: 'test', name: null, email: null, avatar_url: '', html_url: '' });
     expect(storage.setUser).toHaveBeenCalled();
     
     storage.removeUser();
