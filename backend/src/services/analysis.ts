@@ -2,6 +2,7 @@ import { AnalysisJob, AnalysisResult, AnalyzedCriterion } from '../types/analysi
 import { Criterion } from '../types/rubric.js';
 import { MoonshotService } from './moonshot.js';
 import { GitHubService } from './github.js';
+import { AnalysisCache } from './cache.js';
 
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
@@ -12,10 +13,12 @@ const MAX_JOBS = 100;
 export class AnalysisService {
   private moonshotService: MoonshotService;
   private githubService: GitHubService;
+  private cache: AnalysisCache;
 
   constructor() {
     this.moonshotService = new MoonshotService();
     this.githubService = new GitHubService(process.env.GITHUB_TOKEN || '');
+    this.cache = new AnalysisCache();
   }
 
   /**
@@ -55,6 +58,16 @@ export class AnalysisService {
       job.status = 'processing';
       job.updatedAt = new Date().toISOString();
 
+      // Check cache first
+      const cachedResult = this.cache.get(job.repoUrl, criteria);
+      if (cachedResult) {
+        job.status = 'completed';
+        job.result = cachedResult;
+        job.progress = 100;
+        job.updatedAt = new Date().toISOString();
+        return;
+      }
+
       // Extract owner/repo from URL
       const { owner, repo } = this.parseRepoUrl(job.repoUrl);
 
@@ -86,6 +99,9 @@ export class AnalysisService {
         globalComment: this.generateGlobalComment(analyzedCriteria),
         analyzedAt: new Date().toISOString(),
       };
+
+      // Cache the result
+      this.cache.set(job.repoUrl, criteria, result);
 
       job.status = 'completed';
       job.result = result;
@@ -206,6 +222,13 @@ export class AnalysisService {
       const jobsToRemove = sortedJobs.slice(MAX_JOBS);
       jobsToRemove.forEach(job => jobs.delete(job.id));
     }
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): { size: number; oldestEntry: number | null } {
+    return this.cache.getStats();
   }
 }
 

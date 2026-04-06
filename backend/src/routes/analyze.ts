@@ -107,4 +107,17 @@ router.get('/history', (req, res) => {
   }
 });
 
+// GET /api/analyze/cache/stats - Get cache statistics
+router.get('/cache/stats', (req, res) => {
+  try {
+    const stats = analysisService.getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Get cache stats error:', error);
+    res.status(500).json({
+      error: 'Failed to get cache stats',
+    });
+  }
+});
+
 export default router;
