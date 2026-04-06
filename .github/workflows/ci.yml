@@ -23,6 +23,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ./backend/package-lock.json
 
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+
       - name: Install dependencies
         run: npm ci
 
@@ -32,15 +35,23 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "❌ Backend coverage $COVERAGE% is below threshold 80%"
+            exit 1
+          fi
+          echo "✅ Backend coverage $COVERAGE% meets threshold 80%"
+
       - name: Build
         run: npm run build
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
         with:
-          directory: ./backend/coverage
-          flags: backend
           name: backend-coverage
+          path: backend/coverage/
 
   frontend:
     runs-on: ubuntu-latest
@@ -58,6 +69,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ./frontend/package-lock.json
 
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y jq bc
+
       - name: Install dependencies
         run: npm ci
 
@@ -67,12 +81,20 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage
 
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "❌ Frontend coverage $COVERAGE% is below threshold 70%"
+            exit 1
+          fi
+          echo "✅ Frontend coverage $COVERAGE% meets threshold 70%"
+
       - name: Build
         run: npm run build
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
         with:
-          directory: ./frontend/coverage
-          flags: frontend
           name: frontend-coverage
+          path: frontend/coverage/
