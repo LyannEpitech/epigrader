@@ -1,10 +1,20 @@
 import { AnalysisJob, AnalysisResult, AnalyzedCriterion } from '../types/analysis.js';
 import { Criterion } from '../types/rubric.js';
+import { MoonshotService } from './moonshot.js';
+import { GitHubService } from './github.js';
 
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
 
 export class AnalysisService {
+  private moonshotService: MoonshotService;
+  private githubService: GitHubService;
+
+  constructor() {
+    this.moonshotService = new MoonshotService();
+    this.githubService = new GitHubService(process.env.GITHUB_TOKEN || '');
+  }
+
   /**
    * Create a new analysis job
    */
@@ -42,17 +52,23 @@ export class AnalysisService {
       job.status = 'processing';
       job.updatedAt = new Date().toISOString();
 
-      // Simulate processing (replace with actual LLM analysis)
+      // Extract owner/repo from URL
+      const { owner, repo } = this.parseRepoUrl(job.repoUrl);
+
+      // Fetch repository files
+      const repoFiles = await this.fetchRepoFiles(owner, repo);
+
+      // Analyze each criterion with LLM
       const analyzedCriteria: AnalyzedCriterion[] = [];
       
       for (let i = 0; i < criteria.length; i++) {
         const criterion = criteria[i];
         
-        // Simulate analysis time
-        await this.delay(500);
-        
-        // Mock analysis result (replace with actual LLM call)
-        const analyzedCriterion = await this.analyzeCriterion(criterion);
+        // Analyze with Moonshot API
+        const analyzedCriterion = await this.moonshotService.analyzeCriterion(
+          criterion,
+          repoFiles
+        );
         analyzedCriteria.push(analyzedCriterion);
         
         // Update progress
@@ -80,32 +96,67 @@ export class AnalysisService {
   }
 
   /**
-   * Analyze a single criterion (mock implementation)
-   * TODO: Replace with actual LLM call
+   * Parse GitHub repo URL to extract owner and repo
    */
-  private async analyzeCriterion(criterion: Criterion): Promise<AnalyzedCriterion> {
-    // Mock analysis - random score for now
-    const score = Math.floor(Math.random() * (criterion.maxPoints + 1));
-    let status: 'passed' | 'failed' | 'partial';
+  private parseRepoUrl(url: string): { owner: string; repo: string } {
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) {
+      throw new Error('Invalid GitHub URL');
+    }
+    return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+  }
+
+  /**
+   * Fetch repository files for analysis
+   */
+  private async fetchRepoFiles(
+    owner: string,
+    repo: string,
+    maxFiles: number = 10
+  ): Promise<Array<{ path: string; content: string }>> {
+    const files: Array<{ path: string; content: string }> = [];
     
-    if (score === criterion.maxPoints) {
-      status = 'passed';
-    } else if (score === 0) {
-      status = 'failed';
-    } else {
-      status = 'partial';
+    try {
+      // Get repo tree
+      const tree = await this.githubService.getRepoTree(owner, repo);
+      
+      // Filter for code files
+      const codeFiles = tree
+        .filter(item => 
+          item.type === 'blob' && 
+          !item.path.startsWith('.') &&
+          !item.path.includes('node_modules') &&
+          !item.path.includes('vendor') &&
+          (item.path.endsWith('.c') || 
+           item.path.endsWith('.h') ||
+           item.path.endsWith('.cpp') ||
+           item.path.endsWith('.py') ||
+           item.path.endsWith('.js') ||
+           item.path.endsWith('.ts') ||
+           item.path.endsWith('.java') ||
+           item.path.endsWith('.go') ||
+           item.path.endsWith('.rs') ||
+           item.path.endsWith('.md') ||
+           item.path === 'Makefile')
+        )
+        .slice(0, maxFiles);
+
+      // Fetch content for each file
+      for (const file of codeFiles) {
+        try {
+          const content = await this.githubService.getFileContent(owner, repo, file.path);
+          if (content) {
+            files.push({ path: file.path, content });
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch ${file.path}:`, e);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch repo files:', error);
     }
 
-    return {
-      id: criterion.id,
-      name: criterion.name,
-      description: criterion.description,
-      maxPoints: criterion.maxPoints,
-      score,
-      status,
-      justification: `Analyzed ${criterion.name}: ${score}/${criterion.maxPoints} points`,
-      references: [],
-    };
+    return files;
   }
 
   /**
@@ -115,8 +166,10 @@ export class AnalysisService {
     const passed = criteria.filter(c => c.status === 'passed').length;
     const failed = criteria.filter(c => c.status === 'failed').length;
     const partial = criteria.filter(c => c.status === 'partial').length;
+    const totalScore = criteria.reduce((sum, c) => sum + c.score, 0);
+    const maxScore = criteria.reduce((sum, c) => sum + c.maxPoints, 0);
 
-    return `Analysis complete: ${passed} passed, ${partial} partial, ${failed} failed.`;
+    return `Analysis complete: ${totalScore}/${maxScore} points. ${passed} passed, ${partial} partial, ${failed} failed.`;
   }
 
   /**
@@ -124,13 +177,6 @@ export class AnalysisService {
    */
   private generateJobId(): string {
     return `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  /**
-   * Delay helper
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
