@@ -19,7 +19,7 @@ export class MoonshotService {
       const response = await axios.post(
         MOONSHOT_API_URL,
         {
-          model: 'moonshot-v1-8k',
+          model: 'kimi-k2.5',
           messages: [
             {
               role: 'system',
@@ -30,7 +30,7 @@ export class MoonshotService {
               content: prompt,
             },
           ],
-          temperature: 0.3,
+          temperature: 1,
         },
         {
           headers: {
@@ -42,8 +42,8 @@ export class MoonshotService {
 
       const content = response.data.choices[0]?.message?.content || '';
       return this.parseResponse(criterion, content);
-    } catch (error) {
-      console.error('Moonshot API error:', error);
+    } catch (error: any) {
+      console.error('Moonshot API error:', error.response?.status, error.response?.data || error.message);
       // Fallback to mock analysis if API fails
       return this.fallbackAnalysis(criterion);
     }
@@ -181,14 +181,16 @@ ${fileContents}
    * Fallback analysis when API fails
    */
   private fallbackAnalysis(criterion: Criterion): AnalyzedCriterion {
+    // Conservative fallback: 50% of max points
+    const fallbackScore = Math.floor(criterion.maxPoints * 0.5);
     return {
       id: criterion.id,
       name: criterion.name,
       description: criterion.description,
       maxPoints: criterion.maxPoints,
-      score: Math.floor(Math.random() * (criterion.maxPoints + 1)),
+      score: fallbackScore,
       status: 'partial',
-      justification: 'Analysis failed - using fallback scoring',
+      justification: '⚠️ LLM analysis failed - manual review recommended. Using conservative fallback score.',
       references: [],
     };
   }
