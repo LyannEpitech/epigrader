@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AnalyzePage } from '../src/pages/AnalyzePage';
 import { useAnalysis } from '../src/hooks/useAnalysis';
-import { rubricStorage } from '../src/services/rubric';
 
 vi.mock('../src/hooks/useAnalysis', () => ({
   useAnalysis: vi.fn(),
@@ -71,9 +70,7 @@ describe('AnalyzePage', () => {
     const button = screen.getByRole('button', { name: /Start Analysis/i });
     fireEvent.click(button);
     
-    await waitFor(() => {
-      expect(mockStartAnalysis).toHaveBeenCalledWith('https://github.com/Epitech/test', 'rubric-1');
-    });
+    expect(mockStartAnalysis).toHaveBeenCalledWith('https://github.com/Epitech/test', 'rubric-1');
   });
 
   it('displays results when job is completed', () => {
