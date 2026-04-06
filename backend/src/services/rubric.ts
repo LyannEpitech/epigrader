@@ -35,23 +35,32 @@ export class RubricService {
 
   /**
    * Parse rubric using regex patterns
+   * Supports both markdown format and Epitech rubric format
    */
   private parseWithRegex(content: string): Criterion[] {
     const criteria: Criterion[] = [];
     const lines = content.split('\n');
     let currentCriterion: Partial<Criterion> | null = null;
     let idCounter = 1;
+    let inNotesSection = false;
+    let maxPointsInSection = 0;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmedLine = line.trim();
       
-      // Match criterion header: ## Criterion Name (X pts) or ## Criterion Name - X points
-      const headerMatch = trimmedLine.match(/^##\s+(.+?)\s*\((\d+)\s*(?:pts?|points?)\)/i) ||
-                         trimmedLine.match(/^##\s+(.+?)\s*-\s*(\d+)\s*(?:pts?|points?)/i);
+      if (!trimmedLine) continue;
       
-      if (headerMatch) {
+      // Try markdown format first: ## Criterion Name (X pts)
+      const markdownMatch = trimmedLine.match(/^##\s+(.+?)\s*\((\d+)\s*(?:pts?|points?)\)/i) ||
+                           trimmedLine.match(/^##\s+(.+?)\s*-\s*(\d+)\s*(?:pts?|points?)/i);
+      
+      if (markdownMatch) {
         // Save previous criterion if exists
         if (currentCriterion && currentCriterion.name) {
+          if (maxPointsInSection > 0 && !currentCriterion.maxPoints) {
+            currentCriterion.maxPoints = maxPointsInSection;
+          }
           criteria.push({
             id: String(idCounter++),
             name: currentCriterion.name,
@@ -60,20 +69,63 @@ export class RubricService {
           });
         }
         
-        // Start new criterion
         currentCriterion = {
-          name: headerMatch[1].trim(),
-          maxPoints: parseInt(headerMatch[2], 10),
+          name: markdownMatch[1].trim(),
+          maxPoints: parseInt(markdownMatch[2], 10),
           description: '',
         };
+        inNotesSection = false;
+        maxPointsInSection = 0;
+        continue;
+      }
+      
+      // Try Epitech format: standalone title before metadata
+      const nextLines = lines.slice(i + 1, Math.min(i + 5, lines.length)).join(' ');
+      const isEpitechCriterion = trimmedLine.length > 3 && 
+                                !trimmedLine.startsWith('-') && 
+                                !trimmedLine.startsWith('Module:') &&
+                                !trimmedLine.startsWith('Critères') &&
+                                !trimmedLine.startsWith('Ordre:') &&
+                                !trimmedLine.startsWith('Compétences:') &&
+                                !trimmedLine.startsWith('Notes') &&
+                                !trimmedLine.includes('[') &&
+                                !trimmedLine.startsWith('##') &&
+                                (nextLines.includes('Ordre:') || nextLines.includes('Compétences:') || nextLines.includes('Notes possibles:'));
+      
+      if (isEpitechCriterion) {
+        // Save previous criterion if exists
+        if (currentCriterion && currentCriterion.name) {
+          if (maxPointsInSection > 0) {
+            currentCriterion.maxPoints = maxPointsInSection;
+          }
+          criteria.push({
+            id: String(idCounter++),
+            name: currentCriterion.name,
+            description: currentCriterion.description || '',
+            maxPoints: currentCriterion.maxPoints || 0,
+          });
+        }
+        
+        currentCriterion = {
+          name: trimmedLine,
+          maxPoints: 0,
+          description: '',
+        };
+        inNotesSection = false;
+        maxPointsInSection = 0;
+      } else if (trimmedLine.startsWith('Notes possibles:')) {
+        inNotesSection = true;
+      } else if (inNotesSection && /^\d+$/.test(trimmedLine)) {
+        const pointValue = parseInt(trimmedLine, 10);
+        if (pointValue > maxPointsInSection) {
+          maxPointsInSection = pointValue;
+        }
       } else if (currentCriterion && trimmedLine.startsWith('-')) {
-        // This is a description line (bullet point)
         const descriptionLine = trimmedLine.substring(1).trim();
         currentCriterion.description = currentCriterion.description 
           ? currentCriterion.description + '\n' + descriptionLine
           : descriptionLine;
       } else if (currentCriterion && trimmedLine && !trimmedLine.startsWith('#')) {
-        // Additional description text
         currentCriterion.description = currentCriterion.description 
           ? currentCriterion.description + '\n' + trimmedLine
           : trimmedLine;
@@ -82,6 +134,9 @@ export class RubricService {
 
     // Don't forget the last criterion
     if (currentCriterion && currentCriterion.name) {
+      if (maxPointsInSection > 0 && !currentCriterion.maxPoints) {
+        currentCriterion.maxPoints = maxPointsInSection;
+      }
       criteria.push({
         id: String(idCounter++),
         name: currentCriterion.name,
@@ -98,23 +153,28 @@ export class RubricService {
    * For unstructured text descriptions
    */
   private async parseWithLLM(content: string): Promise<Criterion[]> {
-    const prompt = `Parse the following grading rubric text and extract criteria with their point values.
+    const prompt = `Parse the following grading rubric and extract all criteria with their maximum points and descriptions.
 
 ## Rubric Text:
 ${content.substring(0, 4000)}
 
 ## Instructions:
-Extract each grading criterion with:
-1. Name of the criterion
-2. Maximum points (number)
-3. Description of what is expected
+Look for criteria sections that contain:
+- Criterion name (e.g., "Business Understanding", "Technical Implementation")
+- Maximum points (look for "Notes possibles" with highest number, or count bullet points)
+- Description with bullet points explaining what is evaluated
+
+For each criterion, extract:
+1. Name: The criterion title (e.g., "Business Understanding")
+2. maxPoints: The maximum possible score (highest number in "Notes possibles" or number of bullet points)
+3. description: Combine all bullet points into a description
 
 ## Response Format (JSON array):
 [
   {
-    "name": "Criterion Name",
-    "maxPoints": 10,
-    "description": "Description of what is expected for this criterion"
+    "name": "Business Understanding",
+    "maxPoints": 4,
+    "description": "1 point per valid statement:\n- Identifies a clear target audience.\n- Describes at least 3 needs..."
   }
 ]
 
