@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useGitHubAuth } from './hooks/useGitHubAuth';
 import { AuthPage } from './pages/AuthPage';
 import { RubricPage } from './pages/RubricPage';
+import { AnalyzePage } from './pages/AnalyzePage';
 import './App.css';
 
 function App() {
@@ -21,6 +22,10 @@ function App() {
         <Route 
           path="/rubric" 
           element={isAuthenticated ? <RubricPage /> : <Navigate to="/auth" />} 
+        />
+        <Route 
+          path="/analyze" 
+          element={isAuthenticated ? <AnalyzePage /> : <Navigate to="/auth" />} 
         />
       </Routes>
     </Router>

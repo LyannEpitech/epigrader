@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import rubricRoutes from './routes/rubric.js';
+import analyzeRoutes from './routes/analyze.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/rubric', rubricRoutes);
+app.use('/api/analyze', analyzeRoutes);
 // app.use('/api/analyze', analyzeRoutes);
 // app.use('/api/report', reportRoutes);
 
