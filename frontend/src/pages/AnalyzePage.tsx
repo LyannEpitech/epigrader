@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { ProgressBar } from '../components/ProgressBar';
+import { AnalysisSteps } from '../components/AnalysisSteps';
 import { rubricApi } from '../services/rubric';
 import { GitBranch, Play, Loader2 } from 'lucide-react';
 
@@ -133,6 +134,13 @@ export const AnalyzePage = () => {
             {job && (
               <div className="mt-6">
                 <ProgressBar progress={job.progress} status={job.status} />
+              </div>
+            )}
+            
+            {/* Analysis Steps */}
+            {job && job.status === 'processing' && job.steps && job.steps.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <AnalysisSteps steps={job.steps} />
               </div>
             )}
           </div>
