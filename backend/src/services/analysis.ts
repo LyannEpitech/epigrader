@@ -131,7 +131,7 @@ export class AnalysisService {
   private async fetchRepoFiles(
     owner: string,
     repo: string,
-    maxFiles: number = 10
+    maxFiles: number = 50
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
     
@@ -139,25 +139,70 @@ export class AnalysisService {
       // Get repo tree
       const tree = await this.githubService.getRepoTree(owner, repo);
       
+      // Supported file extensions
+      const codeExtensions = [
+        '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp',
+        '.py', '.pyc', '.pyo',
+        '.js', '.jsx', '.ts', '.tsx', '.mjs',
+        '.java', '.class', '.jar',
+        '.go', '.mod', '.sum',
+        '.rs', '.toml',
+        '.rb', '.erb',
+        '.php', '.phtml',
+        '.swift',
+        '.kt', '.kts',
+        '.scala', '.sc',
+        '.r', '.R',
+        '.m', '.mm',
+        '.cs', '.csproj',
+        '.fs', '.fsx',
+        '.hs', '.lhs',
+        '.lua',
+        '.pl', '.pm',
+        '.sh', '.bash', '.zsh', '.fish',
+        '.ps1', '.psm1',
+        '.bat', '.cmd',
+        '.sql',
+        '.html', '.htm', '.xhtml',
+        '.css', '.scss', '.sass', '.less',
+        '.xml', '.xsl', '.xslt',
+        '.json', '.yaml', '.yml', '.toml',
+        '.md', '.markdown', '.rst',
+        '.dockerfile', 'dockerfile',
+        '.gitignore', '.gitattributes',
+        '.env', '.env.example',
+        'Makefile', 'makefile', 'GNUmakefile',
+        'CMakeLists.txt', 'Cargo.toml', 'package.json',
+        'requirements.txt', 'Pipfile', 'setup.py', 'pyproject.toml',
+        'Gemfile', 'Rakefile',
+        'pom.xml', 'build.gradle',
+        'go.mod', 'go.sum',
+      ];
+      
       // Filter for code files
       const codeFiles = tree
-        .filter(item => 
-          item.type === 'blob' && 
-          !item.path.startsWith('.') &&
-          !item.path.includes('node_modules') &&
-          !item.path.includes('vendor') &&
-          (item.path.endsWith('.c') || 
-           item.path.endsWith('.h') ||
-           item.path.endsWith('.cpp') ||
-           item.path.endsWith('.py') ||
-           item.path.endsWith('.js') ||
-           item.path.endsWith('.ts') ||
-           item.path.endsWith('.java') ||
-           item.path.endsWith('.go') ||
-           item.path.endsWith('.rs') ||
-           item.path.endsWith('.md') ||
-           item.path === 'Makefile')
-        )
+        .filter(item => {
+          if (item.type !== 'blob') return false;
+          if (item.path.startsWith('.')) return false;
+          if (item.path.includes('node_modules')) return false;
+          if (item.path.includes('vendor')) return false;
+          if (item.path.includes('__pycache__')) return false;
+          if (item.path.includes('.git/')) return false;
+          if (item.path.includes('dist/')) return false;
+          if (item.path.includes('build/')) return false;
+          if (item.path.includes('target/')) return false;
+          if (item.path.includes('bin/')) return false;
+          if (item.path.includes('obj/')) return false;
+          
+          const path = item.path.toLowerCase();
+          const fileName = path.split('/').pop() || '';
+          
+          // Check if it's a known file by name
+          if (codeExtensions.includes(fileName)) return true;
+          
+          // Check by extension
+          return codeExtensions.some(ext => path.endsWith(ext));
+        })
         .slice(0, maxFiles);
 
       // Fetch content for each file

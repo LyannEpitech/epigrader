@@ -5,11 +5,13 @@ import { rubricStorage } from '../../src/services/rubricStorage';
 describe('AnalysisService Integration', () => {
   let service: AnalysisService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     service = new AnalysisService();
     // Clear rubrics
-    const rubrics = rubricStorage.getAllRubrics();
-    rubrics.forEach(r => rubricStorage.deleteRubric(r.id));
+    const rubrics = await rubricStorage.getAllRubrics();
+    for (const r of rubrics) {
+      await rubricStorage.deleteRubric(r.id);
+    }
   });
 
   describe('createJob with real processing', () => {

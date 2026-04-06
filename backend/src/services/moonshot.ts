@@ -79,22 +79,56 @@ export class MoonshotService {
   }
 
   /**
+   * Group files by their directory
+   */
+  private groupFilesByDirectory(
+    files: Array<{ path: string; content: string }>
+  ): Record<string, Array<{ path: string; content: string }>> {
+    const groups: Record<string, Array<{ path: string; content: string }>> = {};
+    
+    for (const file of files) {
+      const dir = file.path.includes('/') 
+        ? file.path.substring(0, file.path.lastIndexOf('/'))
+        : '.';
+      
+      if (!groups[dir]) {
+        groups[dir] = [];
+      }
+      groups[dir].push(file);
+    }
+    
+    return groups;
+  }
+
+  /**
    * Build the prompt for the LLM
    */
   private buildPrompt(criterion: Criterion, repoFiles: Array<{ path: string; content: string }>): string {
-    // Prioritize important files
-    const prioritizedFiles = this.prioritizeFiles(repoFiles);
+    // Group files by directory for better context
+    const filesByDir = this.groupFilesByDirectory(repoFiles);
     
-    const fileContents = prioritizedFiles
-      .map(f => `--- ${f.path} ---\n${f.content.substring(0, 3000)}`)
-      .join('\n\n');
+    // Build content with directory structure
+    let fileContents = '';
+    for (const [dir, files] of Object.entries(filesByDir)) {
+      if (dir === '.') {
+        fileContents += '## Root Directory:\n';
+      } else {
+        fileContents += `## Directory: ${dir}/\n`;
+      }
+      for (const f of files) {
+        fileContents += `--- ${f.path} ---\n${f.content.substring(0, 2000)}\n\n`;
+      }
+    }
 
-    return `You are an expert code reviewer evaluating an Epitech student project.
+    return `You are an expert code reviewer evaluating an Epitech student project. Analyze ALL provided files across ALL directories.
 
 ## Criterion: ${criterion.name} (${criterion.maxPoints} points)
 ${criterion.description}
 
-## Code to Analyze:
+## Repository Structure:
+${Object.keys(filesByDir).map(d => d === '.' ? '- / (root)' : `- ${d}/`).join('\n')}
+
+## Code Files to Analyze:
 ${fileContents}
 
 ## Evaluation Guidelines:
@@ -102,11 +136,16 @@ ${fileContents}
 - Score ${Math.floor(criterion.maxPoints * 0.3) + 1}-${Math.floor(criterion.maxPoints * 0.7)}: Partially met with issues (status: "partial")
 - Score ${Math.floor(criterion.maxPoints * 0.7) + 1}-${criterion.maxPoints}: Fully met (status: "passed")
 
+## Important:
+- Analyze files in ALL directories, not just root
+- Look for implementation across the entire codebase
+- Consider project structure and organization
+
 ## Response (JSON only):
 {
   "score": <number 0-${criterion.maxPoints}>,
   "status": "passed|failed|partial",
-  "justification": "<2-3 sentences explaining the score>",
+  "justification": "<2-3 sentences explaining the score, mentioning specific files and directories>",
   "references": [{"file": "<path>", "lines": [<start>, <end>]}]
 }`;
   }
