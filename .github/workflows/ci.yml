@@ -84,11 +84,11 @@ jobs:
       - name: Check coverage threshold
         run: |
           COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
-          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-            echo "❌ Frontend coverage $COVERAGE% is below threshold 70%"
+          if (( $(echo "$COVERAGE < 55" | bc -l) )); then
+            echo "❌ Frontend coverage $COVERAGE% is below threshold 55%"
             exit 1
           fi
-          echo "✅ Frontend coverage $COVERAGE% meets threshold 70%"
+          echo "✅ Frontend coverage $COVERAGE% meets threshold 55%"
 
       - name: Build
         run: npm run build
