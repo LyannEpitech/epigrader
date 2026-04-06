@@ -31,6 +31,7 @@ const githubService = new GitHubService(loadGitHubToken());
 const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),
   rubricId: z.string().min(1, 'Rubric ID is required'),
+  pat: z.string().optional(),
 });
 
 // POST /api/analyze - Start analysis job
@@ -45,7 +46,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { repoUrl, rubricId } = result.data;
+    const { repoUrl, rubricId, pat } = result.data;
 
     // Get rubric from storage
     const rubric = await rubricStorage.getRubric(rubricId);
@@ -55,8 +56,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create analysis job
-    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria);
+    // Create analysis job with optional PAT
+    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat);
 
     res.status(202).json({
       success: true,

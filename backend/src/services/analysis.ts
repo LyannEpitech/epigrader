@@ -24,7 +24,7 @@ export class AnalysisService {
   /**
    * Create a new analysis job
    */
-  createJob(repoUrl: string, rubricId: string, criteria: Criterion[]): AnalysisJob {
+  createJob(repoUrl: string, rubricId: string, criteria: Criterion[], pat?: string): AnalysisJob {
     const job: AnalysisJob = {
       id: this.generateJobId(),
       status: 'pending',
@@ -38,8 +38,8 @@ export class AnalysisService {
 
     jobs.set(job.id, job);
     
-    // Start async processing
-    this.processJob(job, criteria);
+    // Start async processing with optional PAT
+    this.processJob(job, criteria, pat);
 
     return job;
   }
@@ -69,7 +69,10 @@ export class AnalysisService {
   /**
    * Process job asynchronously with detailed steps
    */
-  private async processJob(job: AnalysisJob, criteria: Criterion[]): Promise<void> {
+  private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string): Promise<void> {
+    // Use provided PAT or fall back to environment token
+    const githubToken = pat || process.env.GITHUB_TOKEN || '';
+    const githubService = new GitHubService(githubToken);
     const steps: AnalysisStep[] = [];
     
     const addStep = (name: string, status: 'pending' | 'running' | 'completed' | 'error', message?: string) => {
@@ -112,7 +115,7 @@ export class AnalysisService {
       
       let githubUser = null;
       try {
-        githubUser = await this.githubService.validateToken();
+        githubUser = await githubService.validateToken();
         addStep('GitHub Authentication', 'completed', `✅ Connected as ${githubUser.login}`);
       } catch (error) {
         if (hasGitHubToken) {
@@ -150,7 +153,7 @@ export class AnalysisService {
       // Step 5: Fetch Repository Info
       addStep('Repository Info', 'running', 'Fetching repository information...');
       try {
-        const repoInfo = await this.githubService.getRepo(owner, repo);
+        const repoInfo = await githubService.getRepo(owner, repo);
         addStep('Repository Info', 'completed', `✅ ${repoInfo.stargazers_count} ⭐ | ${repoInfo.language || 'Unknown language'} | Default branch: ${repoInfo.default_branch}`);
       } catch (error: any) {
         if (error.message?.includes('404')) {
@@ -169,14 +172,14 @@ export class AnalysisService {
       let allFilePaths: string[] = [];
       
       try {
-        const tree = await this.githubService.getRepoTree(owner, repo);
+        const tree = await githubService.getRepoTree(owner, repo);
         allFilePaths = tree.filter(item => item.type === 'blob').map(item => item.path);
         
         addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files`);
         
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
-        repoFiles = await this.fetchRepoFiles(owner, repo, allFilePaths);
+        repoFiles = await this.fetchRepoFiles(owner, repo, allFilePaths, githubService);
         addStep('File Filtering', 'completed', `✅ Selected ${repoFiles.length} code files for analysis`);
         
         if (repoFiles.length === 0) {
@@ -263,6 +266,7 @@ export class AnalysisService {
     owner: string,
     repo: string,
     allFilePaths: string[],
+    githubService: GitHubService,
     maxFiles: number = 50
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
@@ -347,7 +351,7 @@ export class AnalysisService {
     // Fetch content for each file (limited to maxFiles)
     for (const filePath of prioritizedFiles.slice(0, maxFiles)) {
       try {
-        const content = await this.githubService.getFileContent(owner, repo, filePath);
+        const content = await githubService.getFileContent(owner, repo, filePath);
         if (content) {
           files.push({ path: filePath, content });
         }
