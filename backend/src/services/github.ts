@@ -89,7 +89,7 @@ export class GitHubService {
       const response = await this.client.get(`/repos/${owner}/${repo}/commits`, {
         params: { per_page: limit },
       });
-      return response.data.map((commit: any) => ({
+      return response.data.map((commit: { sha: string; commit: { message: string; author: { name: string; email: string; date: string }; committer: { name: string; email: string; date: string } } }) => ({
         sha: commit.sha,
         message: commit.commit.message,
         author: commit.commit.author,
@@ -101,7 +101,7 @@ export class GitHubService {
   }
 
   parseRepoUrl(url: string): { owner: string; repo: string } {
-    const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
     if (!match) {
       throw new Error('Invalid GitHub URL');
     }
