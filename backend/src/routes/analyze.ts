@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     const { repoUrl, rubricId } = result.data;
 
     // Get rubric from storage
-    const rubric = rubricStorage.getRubric(rubricId);
+    const rubric = await rubricStorage.getRubric(rubricId);
     if (!rubric) {
       return res.status(404).json({
         error: 'Rubric not found',
