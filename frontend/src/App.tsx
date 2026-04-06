@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useGitHubAuth } from './hooks/useGitHubAuth';
+import { Header } from './components/Header';
 import { AuthPage } from './pages/AuthPage';
 import { RubricPage } from './pages/RubricPage';
 import { AnalyzePage } from './pages/AnalyzePage';
@@ -12,6 +13,7 @@ function App() {
 
   return (
     <Router>
+      <Header />
       <Routes>
         <Route 
           path="/auth" 

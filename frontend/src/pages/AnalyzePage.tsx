@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { ProgressBar } from '../components/ProgressBar';
 import { AnalysisSteps } from '../components/AnalysisSteps';
+import { CacheManager } from '../components/CacheManager';
 import { rubricApi } from '../services/rubric';
 import { GitBranch, Play, Loader2 } from 'lucide-react';
 
@@ -203,6 +204,11 @@ export const AnalyzePage = () => {
                 {job.error || 'Analysis failed'}
               </div>
             )}
+          </div>
+
+          {/* Cache Manager */}
+          <div className="lg:col-span-2">
+            <CacheManager />
           </div>
         </div>
       </main>

@@ -67,6 +67,20 @@ export class AnalysisService {
   }
 
   /**
+   * Clear all cache
+   */
+  clearCache(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Clear specific cache entry
+   */
+  clearCacheEntry(repoUrl: string): void {
+    this.cache.delete(repoUrl);
+  }
+
+  /**
    * Process job asynchronously with detailed steps
    */
   private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string): Promise<void> {
