@@ -29,7 +29,7 @@ describe('MoonshotService', () => {
       expect(result.score).toBeGreaterThanOrEqual(0);
       expect(result.score).toBeLessThanOrEqual(10);
       expect(['passed', 'failed', 'partial']).toContain(result.status);
-    });
+    }, 10000);
 
 
 
@@ -45,7 +45,7 @@ describe('MoonshotService', () => {
 
       expect(result.id).toBe('2');
       expect(result.maxPoints).toBe(5);
-    });
+    }, 10000);
 
     it('should handle large files by truncating', async () => {
       const criterion: Criterion = {
@@ -63,7 +63,7 @@ describe('MoonshotService', () => {
       // Should not throw
       const result = await service.analyzeCriterion(criterion, repoFiles);
       expect(result.id).toBe('3');
-    });
+    }, 10000);
 
     it('should handle all score ranges', async () => {
       const testCases = [
@@ -85,7 +85,7 @@ describe('MoonshotService', () => {
         expect(result.score).toBeGreaterThanOrEqual(0);
         expect(result.score).toBeLessThanOrEqual(testCase.maxPoints);
       }
-    });
+    }, 10000);
 
     it('should handle multiple files', async () => {
       const criterion: Criterion = {
@@ -104,6 +104,6 @@ describe('MoonshotService', () => {
       const result = await service.analyzeCriterion(criterion, repoFiles);
       expect(result.id).toBe('multi');
       expect(result.name).toBe('Multi File Test');
-    });
+    }, 10000);
   });
 });

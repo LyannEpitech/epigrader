@@ -1,0 +1,26 @@
+:root {
+  /* Epitech Colors */
+  --epitech-primary: #1e3a5f;
+  --epitech-secondary: #2d5a87;
+  --epitech-accent: #ff6b35;
+  --epitech-success: #10b981;
+  --epitech-warning: #f59e0b;
+  --epitech-error: #ef4444;
+  --epitech-background: #f8fafc;
+  --epitech-surface: #ffffff;
+  --epitech-text: #1e293b;
+  --epitech-text-muted: #64748b;
+  --epitech-border: #e2e8f0;
+  
+  /* Gradients */
+  --epitech-gradient-primary: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+  --epitech-gradient-accent: linear-gradient(135deg, #ff6b35 0%, #ff8f5a 100%);
+  
+  /* Shadows */
+  --epitech-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --epitech-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --epitech-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  /* Transitions */
+  --epitech-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}

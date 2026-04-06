@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { renderWithProviders } from './test-utils';
 import { HistoryPage } from '../src/pages/HistoryPage';
 import { useHistory } from '../src/hooks/useHistory';
 import { analysisApi } from '../src/services/analysis';
@@ -36,7 +37,7 @@ describe('HistoryPage', () => {
       refresh: mockRefresh,
     });
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     expect(screen.getByText('Analysis History')).toBeInTheDocument();
   });
 
@@ -48,7 +49,7 @@ describe('HistoryPage', () => {
       refresh: mockRefresh,
     });
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     expect(screen.getByText(/No analyses yet/i)).toBeInTheDocument();
   });
 
@@ -60,7 +61,7 @@ describe('HistoryPage', () => {
       refresh: mockRefresh,
     });
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     expect(screen.getByRole('button', { name: /Refresh/i })).toBeDisabled();
   });
 
@@ -72,7 +73,7 @@ describe('HistoryPage', () => {
       refresh: mockRefresh,
     });
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     expect(screen.getByText('Failed to load')).toBeInTheDocument();
   });
 
@@ -86,7 +87,7 @@ describe('HistoryPage', () => {
       refresh: mockRefresh,
     });
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     const button = screen.getByRole('button', { name: /Refresh/i });
     fireEvent.click(button);
     expect(mockRefresh).toHaveBeenCalled();
@@ -133,7 +134,7 @@ describe('HistoryPage', () => {
 
     vi.mocked(analysisApi.getJobStatus).mockResolvedValue(mockJobDetails);
 
-    render(<HistoryPage />);
+    renderWithProviders(<HistoryPage />, { withRouter: true });
     const historyItem = screen.getByText('Epitech/test');
     fireEvent.click(historyItem);
 
