@@ -5,13 +5,16 @@ export class GitHubService {
   private client: AxiosInstance;
 
   constructor(private token: string) {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'EpiGrader/1.0',
+    };
+    if (token && token !== 'ghp_dummy_token_for_public_repos') {
+      headers.Authorization = `Bearer ${token}`;
+    }
     this.client = axios.create({
       baseURL: 'https://api.github.com',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'EpiGrader/1.0',
-      },
+      headers,
     });
 
     // Add rate limit monitoring
@@ -79,7 +82,8 @@ export class GitHubService {
         params: { recursive: 1 },
       });
       return response.data.tree;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[GitHub] getRepoTree error:', error.response?.status, error.response?.data?.message || error.message);
       throw new Error('Failed to fetch repository tree');
     }
   }

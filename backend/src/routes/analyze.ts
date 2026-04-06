@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
+import { GitHubService } from '../services/github.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
+const githubService = new GitHubService(process.env.GITHUB_TOKEN || 'ghp_dummy_token_for_public_repos');
 
 const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),
@@ -116,6 +118,101 @@ router.get('/cache/stats', (req, res) => {
     console.error('Get cache stats error:', error);
     res.status(500).json({
       error: 'Failed to get cache stats',
+    });
+  }
+});
+
+// GET /api/analyze/debug/files - Debug: list files in repo
+router.get('/debug/files', async (req, res) => {
+  try {
+    const repoUrl = req.query.repoUrl as string;
+    if (!repoUrl) {
+      return res.status(400).json({ error: 'repoUrl query param required' });
+    }
+
+    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid GitHub URL' });
+    }
+
+    const owner = match[1];
+    const repo = match[2].replace(/\.git$/, '');
+
+    const tree = await githubService.getRepoTree(owner, repo);
+    
+    // Filter for code files (same logic as analysis.ts)
+    const codeExtensions = [
+      '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp',
+      '.py', '.pyc', '.pyo',
+      '.js', '.jsx', '.ts', '.tsx', '.mjs',
+      '.java', '.class', '.jar',
+      '.go', '.mod', '.sum',
+      '.rs', '.toml',
+      '.rb', '.erb',
+      '.php', '.phtml',
+      '.swift',
+      '.kt', '.kts',
+      '.scala', '.sc',
+      '.r', '.R',
+      '.m', '.mm',
+      '.cs', '.csproj',
+      '.fs', '.fsx',
+      '.hs', '.lhs',
+      '.lua',
+      '.pl', '.pm',
+      '.sh', '.bash', '.zsh', '.fish',
+      '.ps1', '.psm1',
+      '.bat', '.cmd',
+      '.sql',
+      '.html', '.htm', '.xhtml',
+      '.css', '.scss', '.sass', '.less',
+      '.xml', '.xsl', '.xslt',
+      '.json', '.yaml', '.yml', '.toml',
+      '.md', '.markdown', '.rst',
+      '.dockerfile', 'dockerfile',
+      '.gitignore', '.gitattributes',
+      '.env', '.env.example',
+      'Makefile', 'makefile', 'GNUmakefile',
+      'CMakeLists.txt', 'Cargo.toml', 'package.json',
+      'requirements.txt', 'Pipfile', 'setup.py', 'pyproject.toml',
+      'Gemfile', 'Rakefile',
+      'pom.xml', 'build.gradle',
+      'go.mod', 'go.sum',
+    ];
+
+    const codeFiles = tree.filter(item => {
+      if (item.type !== 'blob') return false;
+      if (item.path.startsWith('.')) return false;
+      if (item.path.includes('node_modules')) return false;
+      if (item.path.includes('vendor')) return false;
+      if (item.path.includes('__pycache__')) return false;
+      if (item.path.includes('.git/')) return false;
+      if (item.path.includes('dist/')) return false;
+      if (item.path.includes('build/')) return false;
+      if (item.path.includes('target/')) return false;
+      if (item.path.includes('bin/')) return false;
+      if (item.path.includes('obj/')) return false;
+      
+      const path = item.path.toLowerCase();
+      const fileName = path.split('/').pop() || '';
+      
+      if (codeExtensions.includes(fileName)) return true;
+      return codeExtensions.some(ext => path.endsWith(ext));
+    });
+
+    res.json({
+      owner,
+      repo,
+      totalFiles: tree.length,
+      codeFilesFound: codeFiles.length,
+      allFiles: tree.map(t => t.path),
+      filteredFiles: codeFiles.map(t => t.path),
+    });
+  } catch (error) {
+    console.error('Debug files error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch files',
+      details: error instanceof Error ? error.message : String(error),
     });
   }
 });
