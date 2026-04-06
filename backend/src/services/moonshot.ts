@@ -50,33 +50,64 @@ export class MoonshotService {
   }
 
   /**
+   * Prioritize files based on importance
+   */
+  private prioritizeFiles(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
+    const priorityOrder = [
+      'README',
+      'Makefile',
+      'main.c',
+      'main.cpp',
+      'main.py',
+      'main.js',
+      'main.ts',
+      'index.js',
+      'index.ts',
+      'app.js',
+      'app.ts',
+    ];
+
+    return files.sort((a, b) => {
+      const aPriority = priorityOrder.findIndex(p => a.path.toLowerCase().includes(p.toLowerCase()));
+      const bPriority = priorityOrder.findIndex(p => b.path.toLowerCase().includes(p.toLowerCase()));
+      
+      if (aPriority === -1 && bPriority === -1) return 0;
+      if (aPriority === -1) return 1;
+      if (bPriority === -1) return -1;
+      return aPriority - bPriority;
+    });
+  }
+
+  /**
    * Build the prompt for the LLM
    */
   private buildPrompt(criterion: Criterion, repoFiles: Array<{ path: string; content: string }>): string {
-    const fileContents = repoFiles
-      .map(f => `--- ${f.path} ---\n${f.content.substring(0, 2000)}...`)
+    // Prioritize important files
+    const prioritizedFiles = this.prioritizeFiles(repoFiles);
+    
+    const fileContents = prioritizedFiles
+      .map(f => `--- ${f.path} ---\n${f.content.substring(0, 3000)}`)
       .join('\n\n');
 
-    return `Analyze the following code repository against this criterion:
+    return `You are an expert code reviewer evaluating an Epitech student project.
 
 ## Criterion: ${criterion.name} (${criterion.maxPoints} points)
-Description: ${criterion.description}
+${criterion.description}
 
-## Repository Files:
+## Code to Analyze:
 ${fileContents}
 
-## Instructions:
-1. Evaluate if the criterion is met
-2. Assign a score from 0 to ${criterion.maxPoints}
-3. Provide a brief justification
-4. Reference specific files/lines if relevant
+## Evaluation Guidelines:
+- Score 0-${Math.floor(criterion.maxPoints * 0.3)}: Criterion not met or severely lacking
+- Score ${Math.floor(criterion.maxPoints * 0.3) + 1}-${Math.floor(criterion.maxPoints * 0.7)}: Partially met with issues (status: "partial")
+- Score ${Math.floor(criterion.maxPoints * 0.7) + 1}-${criterion.maxPoints}: Fully met (status: "passed")
 
-## Response Format (JSON):
+## Response (JSON only):
 {
-  "score": <number>,
+  "score": <number 0-${criterion.maxPoints}>,
   "status": "passed|failed|partial",
-  "justification": "<explanation>",
-  "references": [{"file": "<path>", "lines": [start, end]}]
+  "justification": "<2-3 sentences explaining the score>",
+  "references": [{"file": "<path>", "lines": [<start>, <end>]}]
 }`;
   }
 
