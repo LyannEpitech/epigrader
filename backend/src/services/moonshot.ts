@@ -116,7 +116,11 @@ export class MoonshotService {
         fileContents += `## Directory: ${dir}/\n`;
       }
       for (const f of files) {
-        fileContents += `--- ${f.path} ---\n${f.content.substring(0, 2000)}\n\n`;
+        // Limit content per file to avoid exceeding LLM context (max ~100k chars total)
+        const remainingChars = 100000 - fileContents.length;
+        const contentToAdd = f.content.substring(0, Math.min(5000, remainingChars));
+        fileContents += `--- ${f.path} ---\n${contentToAdd}\n\n`;
+        if (fileContents.length >= 100000) break;
       }
     }
 
