@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { ProgressBar } from '../components/ProgressBar';
-import { rubricStorage } from '../services/rubric';
+import { rubricApi } from '../services/rubric';
 import { GitBranch, Play, Loader2 } from 'lucide-react';
 
 export const AnalyzePage = () => {
   const [repoUrl, setRepoUrl] = useState('');
   const [selectedRubricId, setSelectedRubricId] = useState('');
+  const [savedRubrics, setSavedRubrics] = useState<any[]>([]);
   const { job, isLoading, error, startAnalysis, clear } = useAnalysis();
 
-  const savedRubrics = rubricStorage.getAllRubrics();
+  useEffect(() => {
+    rubricApi.getAllRubrics().then(rubrics => setSavedRubrics(rubrics));
+  }, []);
 
   const handleStart = async () => {
     if (!repoUrl.trim() || !selectedRubricId) return;

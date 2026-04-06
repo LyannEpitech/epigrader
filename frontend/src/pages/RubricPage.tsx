@@ -1,26 +1,62 @@
 import { useState } from 'react';
 import { useRubricParser } from '../hooks/useRubricParser';
+import { useRubrics } from '../hooks/useRubrics';
+import { useNotification } from '../contexts/NotificationContext';
 import { RubricPreview } from '../components/RubricPreview';
-import { rubricStorage } from '../services/rubric';
-import { FileText, Loader2, Save, Trash2 } from 'lucide-react';
+import { FileText, Loader2, Save, Trash2, RefreshCw, CheckCircle } from 'lucide-react';
 
 export const RubricPage = () => {
   const [content, setContent] = useState('');
   const [rubricName, setRubricName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const { criteria, totalPoints, isLoading, error, parseRubric, clear } = useRubricParser();
+  const { rubrics, isLoading: rubricsLoading, fetchRubrics, saveRubric, deleteRubric } = useRubrics();
+  const { success, error: showError } = useNotification();
 
   const handleParse = async () => {
-    if (!content.trim()) return;
-    await parseRubric(content);
+    if (!content.trim()) {
+      showError('Please enter rubric content');
+      return;
+    }
+    const result = await parseRubric(content);
+    if (result) {
+      success('Rubric parsed successfully!');
+    } else if (error) {
+      showError(error);
+    }
   };
 
-  const handleSave = () => {
-    if (rubricName.trim() && criteria.length > 0) {
-      rubricStorage.saveRubric(rubricName, criteria);
+  const handleSave = async () => {
+    if (!rubricName.trim() || criteria.length === 0) {
+      showError('Please enter a name and parse a rubric first');
+      return;
+    }
+    const id = await saveRubric(rubricName, criteria);
+    if (id) {
+      success('Rubric saved successfully!');
       setShowSaveDialog(false);
       setRubricName('');
+      clear();
+      setContent('');
+    } else {
+      showError('Failed to save rubric');
     }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete "${name}"?`)) {
+      const result = await deleteRubric(id);
+      if (result) {
+        success('Rubric deleted successfully!');
+      } else {
+        showError('Failed to delete rubric');
+      }
+    }
+  };
+
+  const handleLoadRubric = (rubric: any) => {
+    setContent(`${rubric.name}\n\n${rubric.criteria.map((c: any) => `## ${c.name} (${c.maxPoints} pts)\n${c.description}`).join('\n\n')}`);
+    success(`Loaded rubric: ${rubric.name}`);
   };
 
   const exampleRubric = `## Presentation (5 pts)
@@ -74,7 +110,7 @@ Example:
 
 ## Features (10 pts)
 - Arguments handling"
-              className="w-full h-96 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+              className="w-full h-64 px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
             />
 
             {error && (
@@ -149,12 +185,67 @@ Example:
                 </div>
               </div>
             )}
+
+            {/* Saved Rubrics List */}
+            <div className="mt-6 border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium">Saved Rubrics</h3>
+                <button
+                  onClick={fetchRubrics}
+                  disabled={rubricsLoading}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1 ${rubricsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+              
+              {rubrics.length === 0 ? (
+                <p className="text-sm text-gray-500">No saved rubrics yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {rubrics.map((rubric) => (
+                    <div
+                      key={rubric.id}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100"
+                    >
+                      <button
+                        onClick={() => handleLoadRubric(rubric)}
+                        className="flex-1 text-left text-sm"
+                      >
+                        <span className="font-medium">{rubric.name}</span>
+                        <span className="text-gray-500 ml-2">({rubric.totalPoints} pts)</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(rubric.id, rubric.name)}
+                        className="text-red-600 hover:text-red-800 p-1"
+                        title="Delete rubric"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Preview Section */}
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Preview</h2>
-            <RubricPreview criteria={criteria} totalPoints={totalPoints} />
+            {criteria.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2 mb-4 text-green-600">
+                  <CheckCircle className="w-5 h-5" />
+                  <span>{criteria.length} criteria parsed successfully</span>
+                </div>
+                <RubricPreview criteria={criteria} totalPoints={totalPoints} />
+              </>
+            ) : (
+              <div className="text-gray-500 text-center py-8">
+                Enter a rubric and click "Parse Rubric" to see the preview.
+              </div>
+            )}
           </div>
         </div>
       </main>
