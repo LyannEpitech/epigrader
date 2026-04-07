@@ -72,8 +72,17 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  const actualPort = (server.address() as any).port;
+  console.log(`🚀 Server running on http://localhost:${actualPort}`);
+  
+  // Write port to file for Electron to read
+  if (process.env.ELECTRON_RUN) {
+    const fs = require('fs');
+    const path = require('path');
+    const portFile = path.join(process.cwd(), '.port');
+    fs.writeFileSync(portFile, actualPort.toString());
+  }
 });
 
 export default app;
