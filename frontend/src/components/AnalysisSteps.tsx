@@ -29,7 +29,7 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
   'Report Generation': <FileText className="w-5 h-5" />,
 };
 
-export const AnalysisSteps = ({ steps, currentStatus, progress: externalProgress, currentStepName }: AnalysisStepsProps) => {
+export const AnalysisSteps = ({ steps, progress: externalProgress, currentStepName }: AnalysisStepsProps) => {
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const [visibleSteps, setVisibleSteps] = useState<AnalysisStep[]>([]);
   const stepsEndRef = useRef<HTMLDivElement>(null);

@@ -51,6 +51,21 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rubric', rubricRoutes);
 app.use('/api/analyze', analyzeRoutes);
 
+// Serve static frontend files in production
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = resolve(process.cwd(), 'frontend/dist');
+  console.log('[DEBUG] Serving frontend from:', frontendPath);
+  
+  app.use(express.static(frontendPath));
+  
+  // Serve index.html for all non-API routes (SPA support)
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api/')) {
+      res.sendFile(resolve(frontendPath, 'index.html'));
+    }
+  });
+}
+
 // Error handling
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
