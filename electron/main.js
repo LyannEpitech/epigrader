@@ -48,9 +48,14 @@ function saveConfig(config) {
 // Create .env file for backend
 function createEnvFile(config) {
   const isDev = !app.isPackaged;
-  const backendPath = isDev 
-    ? path.join(__dirname, '..', '..', 'backend')
-    : path.join(process.resourcesPath, 'backend');
+  let backendPath;
+  
+  if (isDev) {
+    backendPath = path.join(__dirname, '..', '..', 'backend');
+  } else {
+    // In production, backend is in extraResources
+    backendPath = path.join(process.resourcesPath, 'backend');
+  }
   
   const envContent = `NODE_ENV=production
 PORT=0
@@ -129,9 +134,13 @@ function startBackend(config) {
   
   // Check if node.exe exists in packaged app
   let nodeExecutable = 'node';
-  const packagedNode = path.join(process.resourcesPath, 'node', 'node.exe');
-  if (fs.existsSync(packagedNode)) {
-    nodeExecutable = packagedNode;
+  
+  // On Windows, check for packaged node
+  if (process.platform === 'win32') {
+    const packagedNode = path.join(process.resourcesPath, 'node', 'node.exe');
+    if (fs.existsSync(packagedNode)) {
+      nodeExecutable = packagedNode;
+    }
   }
   
   backendProcess = spawn(nodeExecutable, [serverPath], {
