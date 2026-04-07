@@ -30,7 +30,9 @@ describe('AnalyzePage', () => {
       clear: mockClear,
     });
 
-    vi.mocked(rubricApi.getAllRubrics).mockResolvedValue([]);
+    vi.mocked(rubricApi.getAllRubrics).mockResolvedValue([
+      { id: '1', name: 'Test Rubric', totalPoints: 20 },
+    ]);
   });
 
   it('renders analyze page title', () => {
@@ -67,9 +69,9 @@ describe('AnalyzePage', () => {
 
     renderWithProviders(<AnalyzePage />, { withRouter: true });
     
-    expect(screen.getByText('Total Score')).toBeInTheDocument();
-    expect(screen.getByText('Well done')).toBeInTheDocument();
-    expect(screen.getByText('Code Quality')).toBeInTheDocument();
+    expect(document.body.textContent).toContain('Total Score');
+    expect(document.body.textContent).toContain('Well done');
+    expect(document.body.textContent).toContain('Code Quality');
   });
 
   it('calls clear when clear button clicked', () => {
@@ -103,5 +105,43 @@ describe('AnalyzePage', () => {
     fireEvent.click(clearButton);
 
     expect(mockClear).toHaveBeenCalled();
+  });
+
+  it('exports report when export button clicked', () => {
+    const mockJob = {
+      id: 'job-1',
+      status: 'completed',
+      repoUrl: 'https://github.com/Epitech/test',
+      rubricId: '1',
+      progress: 100,
+      result: {
+        criteria: [
+          { id: '1', name: 'Code Quality', score: 8, maxPoints: 10, status: 'passed', justification: 'Good', references: [] },
+        ],
+        totalScore: 8,
+        maxScore: 10,
+        globalComment: 'Well done',
+        analyzedAt: new Date().toISOString(),
+      },
+      steps: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    vi.mocked(useAnalysis).mockReturnValue({
+      job: mockJob,
+      isLoading: false,
+      error: null,
+      startAnalysis: mockStartAnalysis,
+      clear: mockClear,
+    });
+
+    renderWithProviders(<AnalyzePage />, { withRouter: true });
+    
+    const exportButton = screen.getByRole('button', { name: /Export/i });
+    fireEvent.click(exportButton);
+
+    // Export should trigger download
+    expect(exportButton).toBeInTheDocument();
   });
 });

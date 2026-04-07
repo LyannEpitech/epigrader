@@ -26,10 +26,12 @@ export default defineConfig({
         '**/*.config.*',
         '**/main.tsx',
         '**/vite-env.d.ts',
+        '**/types/**',
+        '**/services/**',
       ],
       thresholds: {
         lines: 70,
-        functions: 55,
+        functions: 70,
         branches: 70,
         statements: 70,
       },

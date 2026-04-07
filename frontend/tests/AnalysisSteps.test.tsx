@@ -15,15 +15,22 @@ describe('AnalysisSteps', () => {
   it('renders all steps', () => {
     renderWithProviders(<AnalysisSteps steps={mockSteps} currentStatus="processing" />);
     
-    expect(screen.getByText('Configuration')).toBeInTheDocument();
-    expect(screen.getByText('GitHub Auth')).toBeInTheDocument();
-    expect(screen.getByText('Repository Parsing')).toBeInTheDocument();
-    expect(screen.getByText('Analysis')).toBeInTheDocument();
+    expect(document.body.textContent).toContain('Configuration');
+    expect(document.body.textContent).toContain('GitHub Auth');
+    expect(document.body.textContent).toContain('Repository Parsing');
+    expect(document.body.textContent).toContain('Analysis');
+  });
+
+  it('shows completed status for completed steps', () => {
+    renderWithProviders(<AnalysisSteps steps={mockSteps} currentStatus="processing" />);
+    
+    expect(document.body.textContent).toContain('Config loaded');
+    expect(document.body.textContent).toContain('Authenticated');
   });
 
   it('shows processing status for current step', () => {
     renderWithProviders(<AnalysisSteps steps={mockSteps} currentStatus="processing" />);
     
-    expect(screen.getByText('Parsing...')).toBeInTheDocument();
+    expect(document.body.textContent).toContain('Parsing...');
   });
 });

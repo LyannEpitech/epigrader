@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { CacheManager } from '../src/components/CacheManager';
 import { analysisApi } from '../src/services/analysis';
@@ -17,7 +17,7 @@ describe('CacheManager', () => {
     vi.clearAllMocks();
   });
 
-  it('renders cache manager', () => {
+  it('renders cache manager', async () => {
     vi.mocked(analysisApi.getCacheEntries).mockResolvedValue({
       success: true,
       entries: [],
@@ -26,8 +26,9 @@ describe('CacheManager', () => {
 
     renderWithProviders(<CacheManager />);
     
-    // Component renders
-    expect(document.body.textContent).toContain('Cached Repositories');
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Cached Repositories');
+    });
   });
 
   it('shows empty state when no cached entries', async () => {
@@ -59,6 +60,27 @@ describe('CacheManager', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain('Epitech/test1');
       expect(document.body.textContent).toContain('Epitech/test2');
+    });
+  });
+
+  it('refreshes cache list when refresh button clicked', async () => {
+    vi.mocked(analysisApi.getCacheEntries).mockResolvedValue({
+      success: true,
+      entries: [],
+      totalEntries: 0,
+    });
+
+    renderWithProviders(<CacheManager />);
+    
+    await waitFor(() => {
+      expect(analysisApi.getCacheEntries).toHaveBeenCalledTimes(1);
+    });
+
+    const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+    fireEvent.click(refreshButton);
+
+    await waitFor(() => {
+      expect(analysisApi.getCacheEntries).toHaveBeenCalledTimes(2);
     });
   });
 });
