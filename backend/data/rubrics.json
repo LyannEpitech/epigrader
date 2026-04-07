@@ -1,0 +1,30 @@
+{
+  "1775495156763": {
+    "id": "1775495156763",
+    "name": "Test Rubric",
+    "criteria": [
+      {
+        "id": "1",
+        "name": "Test",
+        "description": "",
+        "maxPoints": 5
+      }
+    ],
+    "totalPoints": 5,
+    "createdAt": "2026-04-06T17:05:56.763Z"
+  },
+  "1775495156818": {
+    "id": "1775495156818",
+    "name": "Test Rubric",
+    "criteria": [
+      {
+        "id": "1",
+        "name": "Test",
+        "description": "",
+        "maxPoints": 5
+      }
+    ],
+    "totalPoints": 5,
+    "createdAt": "2026-04-06T17:05:56.818Z"
+  }
+}

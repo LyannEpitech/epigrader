@@ -1,12 +1,14 @@
 import { useHistory } from '../hooks/useHistory';
+import { useNotification } from '../contexts/NotificationContext';
 import { exportPdf } from '../services/history';
 import { analysisApi } from '../services/analysis';
 import { AnalysisJob, AnalyzedCriterion } from '../types/analysis';
 import { useState } from 'react';
-import { History, Download, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
+import { History, Download, RefreshCw, Loader2, ExternalLink, Clock, CheckCircle, XCircle, Sparkles, FileText, ChevronRight } from 'lucide-react';
 
 export const HistoryPage = () => {
   const { history, isLoading, error, refresh } = useHistory();
+  const { success, error: showError } = useNotification();
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobDetails, setJobDetails] = useState<AnalysisJob | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -18,7 +20,7 @@ export const HistoryPage = () => {
       const details = await analysisApi.getJobStatus(jobId);
       setJobDetails(details);
     } catch (err) {
-      console.error('Failed to load job details:', err);
+      showError('Failed to load job details');
     } finally {
       setLoadingDetails(false);
     }
@@ -27,19 +29,33 @@ export const HistoryPage = () => {
   const handleExport = (job: { jobId: string }) => {
     if (jobDetails && selectedJob === job.jobId) {
       exportPdf(jobDetails);
+      success('Report exported successfully!');
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-100';
+        return 'text-emerald-600 bg-emerald-100';
       case 'error':
         return 'text-red-600 bg-red-100';
       case 'processing':
         return 'text-blue-600 bg-blue-100';
       default:
         return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return CheckCircle;
+      case 'error':
+        return XCircle;
+      case 'processing':
+        return Clock;
+      default:
+        return Clock;
     }
   };
 
@@ -50,115 +66,142 @@ export const HistoryPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Analysis History</h1>
-              <p className="mt-2 text-gray-600">
-                View past analyses and export reports
-              </p>
+      {/* Hero */}
+      <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d5a87] text-white py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <History className="w-8 h-8 text-[#ff6b35]" />
+              <div>
+                <h1 className="text-3xl font-bold">Analysis History</h1>
+                <p className="text-white/80">View past analyses and export reports</p>
+              </div>
             </div>
             <button
               onClick={refresh}
               disabled={isLoading}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors disabled:opacity-50"
             >
               {isLoading ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <RefreshCw className="w-5 h-5 mr-2" />
+                <RefreshCw className="w-5 h-5" />
               )}
               Refresh
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto py-6 px-4">
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center gap-2">
+            <XCircle className="w-5 h-5 flex-shrink-0" />
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* History List */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-5 h-5" />
-              <h2 className="text-lg font-semibold">Recent Analyses</h2>
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-[#1e3a5f]/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-[#1e3a5f]" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">Recent Analyses</h2>
+              </div>
             </div>
 
-            {history.length === 0 ? (
-              <div className="text-gray-500 text-center py-8">
-                No analyses yet. Go to /analyze to start one.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {history.map((job) => (
-                  <div
-                    key={job.jobId}
-                    onClick={() => handleViewDetails(job.jobId)}
-                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                      selectedJob === job.jobId
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-blue-600">
-                          {formatRepoUrl(job.repoUrl)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(job.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
-                          job.status
-                        )}`}
+            <div className="max-h-[600px] overflow-y-auto">
+              {history.length === 0 ? (
+                <div className="text-gray-400 text-center py-12">
+                  <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No analyses yet</p>
+                  <p className="text-sm mt-1">Go to Analyze to start one</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {history.map((job) => {
+                    const StatusIcon = getStatusIcon(job.status);
+                    return (
+                      <div
+                        key={job.jobId}
+                        onClick={() => handleViewDetails(job.jobId)}
+                        className={`p-4 cursor-pointer transition-colors ${
+                          selectedJob === job.jobId
+                            ? 'bg-[#1e3a5f]/5 border-l-4 border-[#1e3a5f]'
+                            : 'hover:bg-gray-50'
+                        }`}
                       >
-                        {job.status}
-                      </span>
-                    </div>
-                    {job.totalScore !== undefined && (
-                      <div className="mt-2 text-sm">
-                        Score:{' '}
-                        <span className="font-medium">
-                          {job.totalScore} / {job.maxScore}
-                        </span>
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-3">
+                            <StatusIcon className={`w-5 h-5 ${
+                              job.status === 'completed' ? 'text-emerald-500' :
+                              job.status === 'error' ? 'text-red-500' :
+                              'text-blue-500'
+                            }`} />
+                            <div>
+                              <p className="font-medium text-[#1e3a5f]">
+                                {formatRepoUrl(job.repoUrl)}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(job.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              job.status
+                            )}`}
+                          >
+                            {job.status}
+                          </span>
+                        </div>
+                        {job.totalScore !== undefined && (
+                          <div className="mt-2 ml-8 text-sm">
+                            <span className="text-gray-500">Score:</span>{' '}
+                            <span className="font-semibold text-gray-900">
+                              {job.totalScore} / {job.maxScore}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Details Panel */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Details</h2>
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <FileText className="w-5 h-5 text-emerald-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Details</h2>
+            </div>
 
             {!selectedJob && (
-              <div className="text-gray-500 text-center py-8">
-                Select an analysis to view details
+              <div className="text-gray-400 text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Select an analysis to view details</p>
               </div>
             )}
 
             {loadingDetails && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-[#1e3a5f]" />
               </div>
             )}
 
             {jobDetails && !loadingDetails && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
                   <span className="text-gray-600">Status</span>
                   <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
                       jobDetails.status
                     )}`}
                   >
@@ -168,31 +211,40 @@ export const HistoryPage = () => {
 
                 {jobDetails.result && (
                   <>
-                    <div className="flex justify-between items-center border-t pt-4">
-                      <span className="font-medium">Total Score</span>
-                      <span className="text-2xl font-bold text-blue-600">
-                        {jobDetails.result.totalScore} / {jobDetails.result.maxScore}
+                    <div className="flex justify-between items-center p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl">
+                      <span className="font-medium text-emerald-900">Total Score</span>
+                      <span className="text-3xl font-bold text-emerald-600">
+                        {jobDetails.result.totalScore} <span className="text-lg text-emerald-400">/</span> {jobDetails.result.maxScore}
                       </span>
                     </div>
 
-                    <p className="text-gray-600">{jobDetails.result.globalComment}</p>
+                    <p className="text-gray-600 bg-gray-50 p-4 rounded-xl">{jobDetails.result.globalComment}</p>
 
                     <div className="border-t pt-4">
-                      <h3 className="font-medium mb-2">Criteria</h3>
+                      <h3 className="font-medium text-gray-900 mb-3">Criteria</h3>
                       <div className="space-y-2">
                         {jobDetails.result.criteria.map((c: AnalyzedCriterion) => (
                           <div
                             key={c.id}
-                            className="flex justify-between items-center text-sm"
+                            className="flex justify-between items-center p-3 bg-gray-50 rounded-xl"
                           >
-                            <span>{c.name}</span>
+                            <div className="flex items-center gap-2">
+                              {c.status === 'passed' ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              ) : c.status === 'failed' ? (
+                                <XCircle className="w-4 h-4 text-red-500" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-amber-500" />
+                              )}
+                              <span className="text-sm">{c.name}</span>
+                            </div>
                             <span
-                              className={`font-medium ${
+                              className={`font-medium text-sm ${
                                 c.status === 'passed'
-                                  ? 'text-green-600'
+                                  ? 'text-emerald-600'
                                   : c.status === 'failed'
                                   ? 'text-red-600'
-                                  : 'text-yellow-600'
+                                  : 'text-amber-600'
                               }`}
                             >
                               {c.score}/{c.maxPoints}
@@ -204,9 +256,9 @@ export const HistoryPage = () => {
 
                     <button
                       onClick={() => handleExport({ jobId: jobDetails.id })}
-                      className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors mt-4"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:shadow-lg transition-all mt-4"
                     >
-                      <Download className="w-5 h-5 mr-2" />
+                      <Download className="w-5 h-5" />
                       Export Report
                     </button>
                   </>
@@ -216,10 +268,11 @@ export const HistoryPage = () => {
                   href={jobDetails.repoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <ExternalLink className="w-5 h-5 mr-2" />
+                  <ExternalLink className="w-5 h-5" />
                   View Repository
+                  <ChevronRight className="w-4 h-4" />
                 </a>
               </div>
             )}

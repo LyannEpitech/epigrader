@@ -1,9 +1,18 @@
+export interface AnalysisStep {
+  id: number;
+  name: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  message?: string;
+  timestamp: string;
+}
+
 export interface AnalysisJob {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   repoUrl: string;
   rubricId: string;
   progress: number;
+  steps?: AnalysisStep[];
   result?: AnalysisResult;
   error?: string;
   createdAt: string;

@@ -5,13 +5,16 @@ export class GitHubService {
   private client: AxiosInstance;
 
   constructor(private token: string) {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'EpiGrader/1.0',
+    };
+    if (token && token.startsWith('ghp_') && token.length > 10) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     this.client = axios.create({
       baseURL: 'https://api.github.com',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'EpiGrader/1.0',
-      },
+      headers,
     });
 
     // Add rate limit monitoring
@@ -53,7 +56,11 @@ export class GitHubService {
           throw new Error('Repository not found');
         }
         if (error.response?.status === 403) {
-          throw new Error('Access denied');
+          const message = error.response?.data?.message || '';
+          if (message.includes('SAML')) {
+            throw new Error('SAML SSO required: ' + message);
+          }
+          throw new Error('Access denied: ' + message);
         }
       }
       throw error;
@@ -79,8 +86,13 @@ export class GitHubService {
         params: { recursive: 1 },
       });
       return response.data.tree;
-    } catch (error) {
-      throw new Error('Failed to fetch repository tree');
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message;
+      console.error('[GitHub] getRepoTree error:', error.response?.status, message);
+      if (message.includes('SAML')) {
+        throw new Error('SAML SSO required. Visit https://github.com/orgs/EpitechBachelorPromo2028/sso to authorize your PAT');
+      }
+      throw new Error('Failed to fetch repository tree: ' + message);
     }
   }
 

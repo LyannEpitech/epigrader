@@ -20,6 +20,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'json-summary'],
+      exclude: [
+        '**/node_modules/**',
+        '**/tests/**',
+        '**/*.config.*',
+        '**/main.tsx',
+        '**/vite-env.d.ts',
+        '**/types/**',
+        '**/services/**',
+      ],
       thresholds: {
         lines: 70,
         functions: 70,

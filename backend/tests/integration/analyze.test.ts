@@ -8,10 +8,12 @@ app.use(express.json());
 app.use('/api/analyze', analyzeRoutes);
 
 describe('POST /api/analyze', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clear rubrics before each test
-    const rubrics = rubricStorage.getAllRubrics();
-    rubrics.forEach(r => rubricStorage.deleteRubric(r.id));
+    const rubrics = await rubricStorage.getAllRubrics();
+    for (const r of rubrics) {
+      await rubricStorage.deleteRubric(r.id);
+    }
   });
 
   it('should return 400 for missing repoUrl', async () => {
@@ -46,7 +48,7 @@ describe('POST /api/analyze', () => {
 
   it('should start analysis with valid rubric', async () => {
     // Create a rubric first
-    const rubricId = rubricStorage.saveRubric('Test Rubric', [
+    const rubricId = await rubricStorage.saveRubric('Test Rubric', [
       { id: '1', name: 'Test', description: '', maxPoints: 5 },
     ]);
 
@@ -75,7 +77,7 @@ describe('GET /api/analyze/status/:jobId', () => {
 
   it('should return job status for existing job', async () => {
     // Create a rubric and start analysis
-    const rubricId = rubricStorage.saveRubric('Test Rubric', [
+    const rubricId = await rubricStorage.saveRubric('Test Rubric', [
       { id: '1', name: 'Test', description: '', maxPoints: 5 },
     ]);
 

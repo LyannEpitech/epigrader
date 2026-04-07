@@ -91,17 +91,36 @@ export class AnalysisCache {
   /**
    * Get cache stats
    */
-  getStats(): { size: number; oldestEntry: number | null } {
+  getStats(): { size: number; oldestEntry: number | null; entries: Array<{repoUrl: string; timestamp: number}> } {
     let oldest = Infinity;
+    const entries: Array<{repoUrl: string; timestamp: number}> = [];
+    
     for (const entry of cache.values()) {
       if (entry.timestamp < oldest) {
         oldest = entry.timestamp;
       }
+      entries.push({
+        repoUrl: entry.repoUrl,
+        timestamp: entry.timestamp,
+      });
     }
+    
     return {
       size: cache.size,
       oldestEntry: oldest === Infinity ? null : oldest,
+      entries,
     };
+  }
+
+  /**
+   * Delete specific cache entry by repo URL
+   */
+  delete(repoUrl: string): void {
+    for (const [key, entry] of cache.entries()) {
+      if (entry.repoUrl === repoUrl) {
+        cache.delete(key);
+      }
+    }
   }
 }
 

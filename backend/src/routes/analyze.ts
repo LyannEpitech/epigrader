@@ -1,14 +1,37 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
+import { GitHubService } from '../services/github.js';
+import { AnalysisJob } from '../types/analysis.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
 
+// Load GitHub token from .env file directly
+function loadGitHubToken(): string {
+  try {
+    const envPath = resolve(process.cwd(), '.env');
+    const envContent = readFileSync(envPath, 'utf-8');
+    const match = envContent.match(/^GITHUB_TOKEN=(.+)$/m);
+    if (match) {
+      console.log('[DEBUG] Loaded GITHUB_TOKEN from .env file');
+      return match[1].trim();
+    }
+  } catch (e) {
+    console.log('[DEBUG] Could not load GITHUB_TOKEN from .env:', e);
+  }
+  return process.env.GITHUB_TOKEN || '';
+}
+
+const githubService = new GitHubService(loadGitHubToken());
+
 const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),
   rubricId: z.string().min(1, 'Rubric ID is required'),
+  pat: z.string().optional(),
 });
 
 // POST /api/analyze - Start analysis job
@@ -23,18 +46,18 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { repoUrl, rubricId } = result.data;
+    const { repoUrl, rubricId, pat } = result.data;
 
     // Get rubric from storage
-    const rubric = rubricStorage.getRubric(rubricId);
+    const rubric = await rubricStorage.getRubric(rubricId);
     if (!rubric) {
       return res.status(404).json({
         error: 'Rubric not found',
       });
     }
 
-    // Create analysis job
-    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria);
+    // Create analysis job with optional PAT
+    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat);
 
     res.status(202).json({
       success: true,
@@ -46,6 +69,62 @@ router.post('/', async (req, res) => {
     console.error('Start analysis error:', error);
     res.status(500).json({
       error: 'Failed to start analysis',
+    });
+  }
+});
+
+// GET /api/analyze/cache/entries - List cached repositories (MUST be before /:jobId routes)
+router.get('/cache/entries', (req, res) => {
+  try {
+    const stats = analysisService.getCacheStats();
+    res.json({
+      success: true,
+      entries: stats.entries || [],
+      totalEntries: stats.size || 0,
+    });
+  } catch (error) {
+    console.error('Get cache entries error:', error);
+    res.status(500).json({
+      error: 'Failed to get cache entries',
+    });
+  }
+});
+
+// DELETE /api/analyze/cache - Clear all cache
+router.delete('/cache', (req, res) => {
+  try {
+    analysisService.clearCache();
+    res.json({
+      success: true,
+      message: 'Cache cleared successfully',
+    });
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache',
+    });
+  }
+});
+
+// DELETE /api/analyze/cache/entry - Clear specific repo from cache
+router.delete('/cache/entry', (req, res) => {
+  try {
+    const { repoUrl } = req.query;
+    if (!repoUrl || typeof repoUrl !== 'string') {
+      return res.status(400).json({
+        error: 'repoUrl query parameter is required',
+      });
+    }
+    
+    analysisService.clearCacheEntry(repoUrl);
+    res.json({
+      success: true,
+      message: 'Cache entry cleared successfully',
+    });
+  } catch (error) {
+    console.error('Clear cache entry error:', error);
+    res.status(500).json({
+      error: 'Failed to clear cache entry',
     });
   }
 });
@@ -83,15 +162,16 @@ router.get('/status/:jobId', (req, res) => {
 router.get('/history', (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 10;
-    const jobs = analysisService.getRecentJobs(limit);
+    const jobs = analysisService.getAllJobs().slice(0, limit);
 
     res.json({
-      jobs: jobs.map(job => ({
+      jobs: jobs.map((job: AnalysisJob) => ({
         jobId: job.id,
         repoUrl: job.repoUrl,
         rubricId: job.rubricId,
         status: job.status,
         progress: job.progress,
+        steps: job.steps,
         totalScore: job.result?.totalScore,
         maxScore: job.result?.maxScore,
         createdAt: job.createdAt,
@@ -116,6 +196,101 @@ router.get('/cache/stats', (req, res) => {
     console.error('Get cache stats error:', error);
     res.status(500).json({
       error: 'Failed to get cache stats',
+    });
+  }
+});
+
+// GET /api/analyze/debug/files - Debug: list files in repo
+router.get('/debug/files', async (req, res) => {
+  try {
+    const repoUrl = req.query.repoUrl as string;
+    if (!repoUrl) {
+      return res.status(400).json({ error: 'repoUrl query param required' });
+    }
+
+    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid GitHub URL' });
+    }
+
+    const owner = match[1];
+    const repo = match[2].replace(/\.git$/, '');
+
+    const tree = await githubService.getRepoTree(owner, repo);
+    
+    // Filter for code files (same logic as analysis.ts)
+    const codeExtensions = [
+      '.c', '.h', '.cpp', '.cc', '.cxx', '.hpp',
+      '.py', '.pyc', '.pyo',
+      '.js', '.jsx', '.ts', '.tsx', '.mjs',
+      '.java', '.class', '.jar',
+      '.go', '.mod', '.sum',
+      '.rs', '.toml',
+      '.rb', '.erb',
+      '.php', '.phtml',
+      '.swift',
+      '.kt', '.kts',
+      '.scala', '.sc',
+      '.r', '.R',
+      '.m', '.mm',
+      '.cs', '.csproj',
+      '.fs', '.fsx',
+      '.hs', '.lhs',
+      '.lua',
+      '.pl', '.pm',
+      '.sh', '.bash', '.zsh', '.fish',
+      '.ps1', '.psm1',
+      '.bat', '.cmd',
+      '.sql',
+      '.html', '.htm', '.xhtml',
+      '.css', '.scss', '.sass', '.less',
+      '.xml', '.xsl', '.xslt',
+      '.json', '.yaml', '.yml', '.toml',
+      '.md', '.markdown', '.rst',
+      '.dockerfile', 'dockerfile',
+      '.gitignore', '.gitattributes',
+      '.env', '.env.example',
+      'Makefile', 'makefile', 'GNUmakefile',
+      'CMakeLists.txt', 'Cargo.toml', 'package.json',
+      'requirements.txt', 'Pipfile', 'setup.py', 'pyproject.toml',
+      'Gemfile', 'Rakefile',
+      'pom.xml', 'build.gradle',
+      'go.mod', 'go.sum',
+    ];
+
+    const codeFiles = tree.filter(item => {
+      if (item.type !== 'blob') return false;
+      if (item.path.startsWith('.')) return false;
+      if (item.path.includes('node_modules')) return false;
+      if (item.path.includes('vendor')) return false;
+      if (item.path.includes('__pycache__')) return false;
+      if (item.path.includes('.git/')) return false;
+      if (item.path.includes('dist/')) return false;
+      if (item.path.includes('build/')) return false;
+      if (item.path.includes('target/')) return false;
+      if (item.path.includes('bin/')) return false;
+      if (item.path.includes('obj/')) return false;
+      
+      const path = item.path.toLowerCase();
+      const fileName = path.split('/').pop() || '';
+      
+      if (codeExtensions.includes(fileName)) return true;
+      return codeExtensions.some(ext => path.endsWith(ext));
+    });
+
+    res.json({
+      owner,
+      repo,
+      totalFiles: tree.length,
+      codeFilesFound: codeFiles.length,
+      allFiles: tree.map(t => t.path),
+      filteredFiles: codeFiles.map(t => t.path),
+    });
+  } catch (error) {
+    console.error('Debug files error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch files',
+      details: error instanceof Error ? error.message : String(error),
     });
   }
 });

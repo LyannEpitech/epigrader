@@ -8,39 +8,29 @@ export const rubricApi = {
     const response = await axios.post(`${API_URL}/rubric/parse`, { content });
     return response.data;
   },
-};
 
-export const rubricStorage = {
-  saveRubric: (name: string, criteria: Criterion[]): void => {
-    const rubrics = rubricStorage.getAllRubrics();
-    rubrics.push({
-      id: Date.now().toString(),
-      name,
-      criteria,
-      totalPoints: criteria.reduce((sum, c) => sum + c.maxPoints, 0),
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem('epigrader_rubrics', JSON.stringify(rubrics));
+  saveRubric: async (name: string, criteria: Criterion[]): Promise<string> => {
+    const response = await axios.post(`${API_URL}/rubric`, { name, criteria });
+    return response.data.id;
   },
 
-  getAllRubrics: (): Array<{
+  getAllRubrics: async (): Promise<Array<{
     id: string;
     name: string;
     criteria: Criterion[];
     totalPoints: number;
     createdAt: string;
-  }> => {
-    const stored = localStorage.getItem('epigrader_rubrics');
-    return stored ? JSON.parse(stored) : [];
+  }>> => {
+    const response = await axios.get(`${API_URL}/rubric`);
+    return response.data.rubrics;
   },
 
-  getRubric: (id: string) => {
-    const rubrics = rubricStorage.getAllRubrics();
-    return rubrics.find((r) => r.id === id);
+  getRubric: async (id: string) => {
+    const response = await axios.get(`${API_URL}/rubric/${id}`);
+    return response.data.rubric;
   },
 
-  deleteRubric: (id: string): void => {
-    const rubrics = rubricStorage.getAllRubrics().filter((r) => r.id !== id);
-    localStorage.setItem('epigrader_rubrics', JSON.stringify(rubrics));
+  deleteRubric: async (id: string): Promise<void> => {
+    await axios.delete(`${API_URL}/rubric/${id}`);
   },
 };

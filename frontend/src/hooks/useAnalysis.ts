@@ -53,7 +53,10 @@ export const useAnalysis = (): UseAnalysisReturn => {
         clearInterval(intervalRef.current);
       }
 
-      const response = await analysisApi.startAnalysis(repoUrl, rubricId);
+      // Get PAT from sessionStorage if available
+      const pat = sessionStorage.getItem('github_pat') || undefined;
+      
+      const response = await analysisApi.startAnalysis(repoUrl, rubricId, pat);
       
       // Get initial job status
       const jobStatus = await analysisApi.getJobStatus(response.jobId);
