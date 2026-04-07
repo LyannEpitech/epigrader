@@ -1,1 +1,0 @@
-{"version":3,"file":"rubricStorage.d.ts","sourceRoot":"","sources":["../../src/services/rubricStorage.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,SAAS,EAAE,MAAM,oBAAoB,CAAC;AA4B/C,eAAO,MAAM,aAAa;uBACC,MAAM,YAAY,SAAS,EAAE,KAAG,OAAO,CAAC,MAAM,CAAC;;oBAsBlD,MAAM;uBAUH,MAAM,KAAG,OAAO,CAAC,IAAI,CAAC;CAIhD,CAAC;AAEF,eAAe,aAAa,CAAC"}
