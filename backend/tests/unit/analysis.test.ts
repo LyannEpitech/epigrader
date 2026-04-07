@@ -26,7 +26,16 @@ describe('AnalysisService', () => {
       const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria, 'pat-token');
       
       expect(job).toBeDefined();
-      // PAT is stored internally, not exposed in job object
+      expect(job.status).toBe('pending');
+    });
+
+    it('should create job with steps', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      
+      const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria);
+      
+      expect(job.steps).toBeDefined();
+      expect(job.steps?.length).toBeGreaterThan(0);
     });
   });
 
@@ -63,6 +72,53 @@ describe('AnalysisService', () => {
       const jobs = service.getAllJobs();
       
       expect(jobs.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('updateJobStatus', () => {
+    it('should update job status', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria);
+      
+      (service as any).updateJobStatus(job.id, 'processing');
+      
+      const updatedJob = service.getJob(job.id);
+      expect(updatedJob?.status).toBe('processing');
+    });
+  });
+
+  describe('updateJobProgress', () => {
+    it('should update job progress', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria);
+      
+      (service as any).updateJobProgress(job.id, 50);
+      
+      const updatedJob = service.getJob(job.id);
+      expect(updatedJob?.progress).toBe(50);
+    });
+  });
+
+  describe('Cache operations', () => {
+    it('should return cache stats', () => {
+      const stats = service.getCacheStats();
+      
+      expect(stats).toHaveProperty('size');
+      expect(stats).toHaveProperty('entries');
+    });
+
+    it('should clear cache', () => {
+      service.clearCache();
+      
+      const stats = service.getCacheStats();
+      expect(stats.size).toBe(0);
+    });
+
+    it('should clear specific cache entry', () => {
+      service.clearCacheEntry('https://github.com/Epitech/test');
+      
+      // Should not throw
+      expect(true).toBe(true);
     });
   });
 });
