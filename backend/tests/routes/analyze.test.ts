@@ -2,6 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import analyzeRouter from '../../src/routes/analyze';
 
+// Mock dependencies
 jest.mock('../../src/services/analysis', () => ({
   AnalysisService: jest.fn().mockImplementation(() => ({
     createJob: jest.fn().mockReturnValue({
@@ -28,6 +29,22 @@ jest.mock('../../src/services/analysis', () => ({
     getCacheStats: jest.fn().mockReturnValue({ size: 0, entries: [] }),
     clearCache: jest.fn(),
     clearCacheEntry: jest.fn(),
+  })),
+}));
+
+jest.mock('../../src/services/rubricStorage', () => ({
+  rubricStorage: {
+    getRubric: jest.fn().mockResolvedValue({
+      id: 'rubric-1',
+      name: 'Test Rubric',
+      criteria: [{ id: '1', name: 'Test', maxPoints: 10 }],
+    }),
+  },
+}));
+
+jest.mock('../../src/services/github', () => ({
+  GitHubService: jest.fn().mockImplementation(() => ({
+    validateToken: jest.fn().mockResolvedValue(true),
   })),
 }));
 
@@ -64,11 +81,11 @@ describe('Analyze Routes', () => {
         .send({ 
           repoUrl: 'https://github.com/Epitech/test', 
           rubricId: 'rubric-1',
-          criteria: [{ id: '1', name: 'Test', maxPoints: 10 }]
         });
 
       expect(response.status).toBe(202);
       expect(response.body).toHaveProperty('jobId');
+      expect(response.body.success).toBe(true);
     });
   });
 
@@ -78,7 +95,7 @@ describe('Analyze Routes', () => {
         .get('/api/analyze/status/job-123');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id');
+      expect(response.body).toHaveProperty('jobId');
     });
   });
 
@@ -88,7 +105,8 @@ describe('Analyze Routes', () => {
         .get('/api/analyze/history');
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body).toHaveProperty('jobs');
+      expect(Array.isArray(response.body.jobs)).toBe(true);
     });
   });
 
