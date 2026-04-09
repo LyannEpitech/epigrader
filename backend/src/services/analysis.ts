@@ -7,7 +7,8 @@ import { AnalysisCache } from './cache.js';
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
 
-// Maximum number of jobs to keep in memory
+// Maximum number of jobs to keep in memory (for future cleanup implementation)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const MAX_JOBS = 100;
 
 export class AnalysisService {
