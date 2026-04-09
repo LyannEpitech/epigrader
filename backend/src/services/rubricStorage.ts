@@ -2,14 +2,24 @@ import { Criterion } from '../types/rubric.js';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import type { Database } from 'sqlite';
+import path from 'path';
 
 let db: Database<sqlite3.Database, sqlite3.Statement> | null = null;
+
+const getDbPath = () => {
+  // Use DB_PATH from env if set (Electron sets this)
+  if (process.env.DB_PATH) {
+    return path.join(process.env.DB_PATH, 'epigrader.db');
+  }
+  // Default path for standalone backend
+  return './data/epigrader.db';
+};
 
 const initDb = async () => {
   if (db) return db;
   
   db = await open({
-    filename: './data/epigrader.db',
+    filename: getDbPath(),
     driver: sqlite3.Database,
   });
 
