@@ -19,16 +19,7 @@ const stepIcons: Record<string, React.ElementType> = {
   'Report Generation': FileCheck,
 };
 
-// Step color gradients (for future use with custom step styling)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const stepColors: Record<string, string> = {
-  'Configuration': 'from-blue-500 to-blue-600',
-  'GitHub Auth': 'from-purple-500 to-purple-600',
-  'Repository Fetch': 'from-cyan-500 to-cyan-600',
-  'Code Analysis': 'from-emerald-500 to-emerald-600',
-  'AI Processing': 'from-amber-500 to-amber-600',
-  'Report Generation': 'from-rose-500 to-rose-600',
-};
+
 
 export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +41,7 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   const getStepStatus = (step: AnalysisStep, index: number) => {
     if (step.status === 'completed') return 'completed';
     if (step.status === 'error') return 'error';
-    if (step.status === 'processing' || 
+    if (step.status === 'running' || 
         (index === steps.findIndex(s => s.status === 'pending') && currentStatus === 'processing')) {
       return 'processing';
     }

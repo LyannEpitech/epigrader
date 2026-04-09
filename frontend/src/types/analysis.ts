@@ -1,3 +1,5 @@
+export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'error';
+
 export interface AnalysisStep {
   id: number;
   name: string;
