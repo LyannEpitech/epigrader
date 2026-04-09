@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAnalysis } from '../hooks/useAnalysis';
 import { useNotification } from '../contexts/NotificationContext';
-import { ProgressBar } from '../components/ProgressBar';
 import { AnalysisSteps } from '../components/AnalysisSteps';
 import { CacheManager } from '../components/CacheManager';
 import { rubricApi } from '../services/rubric';
@@ -176,16 +175,9 @@ export const AnalyzePage = () => {
               </div>
             </div>
 
-            {/* Progress */}
-            {job && (
-              <div className="mt-6">
-                <ProgressBar progress={job.progress} status={job.status} />
-              </div>
-            )}
-            
-            {/* Analysis Steps */}
+            {/* Analysis Progress */}
             {job && job.steps && job.steps.length > 0 && (
-              <div className="mt-6 border-t pt-4">
+              <div className="mt-6">
                 <AnalysisSteps steps={job.steps} currentStatus={job.status} />
               </div>
             )}
