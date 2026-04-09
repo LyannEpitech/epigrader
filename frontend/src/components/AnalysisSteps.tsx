@@ -37,10 +37,13 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   // Auto-scroll to current step
   useEffect(() => {
     if (currentStepRef.current && containerRef.current) {
-      currentStepRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+      // Check if scrollIntoView is available (not in test environment)
+      if (typeof currentStepRef.current.scrollIntoView === 'function') {
+        currentStepRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }
     }
   }, [steps]);
 

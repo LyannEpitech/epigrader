@@ -22,6 +22,10 @@ describe('AnalyzePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     
+    // Mock URL.createObjectURL for export functionality
+    global.URL.createObjectURL = vi.fn(() => 'blob:test');
+    global.URL.revokeObjectURL = vi.fn();
+    
     vi.mocked(useAnalysis).mockReturnValue({
       job: null,
       isLoading: false,
