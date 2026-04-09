@@ -176,9 +176,12 @@ export const AnalyzePage = () => {
             </div>
 
             {/* Analysis Progress */}
-            {job && job.steps && job.steps.length > 0 && (
-              <div className="mt-6">
-                <AnalysisSteps steps={job.steps} currentStatus={job.status} />
+            {job && (
+              <div className="mt-6 border-t border-gray-200 pt-6">
+                <AnalysisSteps 
+                  steps={job.steps || []} 
+                  currentStatus={job.status} 
+                />
               </div>
             )}
           </div>

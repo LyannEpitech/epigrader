@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AnalysisStep, AnalysisStatus } from '../types/analysis';
+import type { AnalysisStep, AnalysisStatus } from '../types/analysis';
 import { 
   Settings, Shield, Search, GitBranch, Brain, FileCheck, 
   CheckCircle2, Circle, Loader2, AlertCircle 
@@ -56,6 +56,30 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
 
   const completedCount = steps.filter(s => s.status === 'completed').length;
   const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
+
+  // Show loading state if no steps yet
+  if (steps.length === 0) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <span className="text-gray-600">Initialisation de l'analyse...</span>
+          </div>
+        </div>
+        
+        {/* Animated Progress Bar */}
+        <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1e3a5f] to-[#2d5a87] rounded-full transition-all duration-500 ease-out"
+            style={{ width: '10%' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
