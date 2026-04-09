@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useGitHubAuth } from '../hooks/useGitHubAuth';
 import { useNotification } from '../contexts/NotificationContext';
-import { Home, FileText, PlayCircle, History, LogOut, Sparkles } from 'lucide-react';
+import { Home, FileText, PlayCircle, History, LogOut, Sparkles, Settings } from 'lucide-react';
 
 export const Header = () => {
   const { isAuthenticated, user, logout } = useGitHubAuth();
@@ -15,6 +15,7 @@ export const Header = () => {
     { path: '/rubric', label: 'Rubrics', icon: FileText },
     { path: '/analyze', label: 'Analyze', icon: PlayCircle },
     { path: '/history', label: 'History', icon: History },
+    { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const handleLogout = () => {
