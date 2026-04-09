@@ -60,6 +60,7 @@ function createEnvFile(config) {
   const envContent = `NODE_ENV=production
 PORT=0
 MOONSHOT_API_KEY=${config.moonshotApiKey || ''}
+GITHUB_TOKEN=${config.githubToken || ''}
 DB_PATH=${dbPath}
 `;
   
