@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, globalShortcut } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -119,6 +119,18 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Open DevTools with F12 in development
+  if (!app.isPackaged) {
+    mainWindow.webContents.openDevTools();
+  }
+
+  // Toggle DevTools with F12
+  globalShortcut.register('F12', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.toggleDevTools();
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -264,6 +276,11 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopBackend();
+});
+
+app.on('will-quit', () => {
+  // Unregister all shortcuts
+  globalShortcut.unregisterAll();
 });
 
 // Security: Prevent new window creation
