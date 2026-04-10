@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { screen } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { AnalysisSteps } from '../src/components/AnalysisSteps';
 import { AnalysisStep } from '../src/types/analysis';

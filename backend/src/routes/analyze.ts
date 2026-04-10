@@ -6,6 +6,7 @@ import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
 import { GitHubService } from '../services/github.js';
 import { AnalysisJob } from '../types/analysis.js';
+import { llmService, LLMProviderFactory } from '../services/llm/index.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
@@ -32,6 +33,7 @@ const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),
   rubricId: z.string().min(1, 'Rubric ID is required'),
   pat: z.string().optional(),
+  branch: z.string().optional(),
 });
 
 // POST /api/analyze - Start analysis job
@@ -46,7 +48,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { repoUrl, rubricId, pat } = result.data;
+    const { repoUrl, rubricId, pat, branch } = result.data;
 
     // Get rubric from storage
     const rubric = await rubricStorage.getRubric(rubricId);
@@ -56,8 +58,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create analysis job with optional PAT
-    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat);
+    // Create analysis job with optional PAT and branch
+    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat, branch);
 
     res.status(202).json({
       success: true,
@@ -145,6 +147,8 @@ router.get('/status/:jobId', (req, res) => {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
+      branch: job.branch,
+      steps: job.steps,
       result: job.result,
       error: job.error,
       createdAt: job.createdAt,
@@ -169,6 +173,7 @@ router.get('/history', (req, res) => {
         jobId: job.id,
         repoUrl: job.repoUrl,
         rubricId: job.rubricId,
+        branch: job.branch,
         status: job.status,
         progress: job.progress,
         steps: job.steps,
@@ -196,6 +201,55 @@ router.get('/cache/stats', (req, res) => {
     console.error('Get cache stats error:', error);
     res.status(500).json({
       error: 'Failed to get cache stats',
+    });
+  }
+});
+
+// GET /api/analyze/branches - Get branches for a repository
+router.get('/branches', async (req, res) => {
+  try {
+    const repoUrl = req.query.repoUrl as string;
+    const pat = req.query.pat as string | undefined;
+    
+    if (!repoUrl) {
+      return res.status(400).json({ error: 'repoUrl query param required' });
+    }
+
+    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid GitHub URL' });
+    }
+
+    const owner = match[1];
+    const repo = match[2].replace(/\.git$/, '');
+
+    // Use user's PAT if provided, otherwise use default
+    const token = pat || process.env.GITHUB_TOKEN || '';
+    const service = new GitHubService(token);
+
+    const branches = await service.getBranches(owner, repo);
+    
+    // Get default branch info
+    try {
+      const repoInfo = await service.getRepo(owner, repo);
+      const defaultBranch = repoInfo.default_branch;
+      
+      // Mark default branch
+      branches.forEach(b => {
+        if (b.name === defaultBranch) {
+          b.default = true;
+        }
+      });
+    } catch (e) {
+      console.warn('[API] Could not get default branch:', e);
+    }
+
+    res.json({ branches });
+  } catch (error) {
+    console.error('Get branches error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch branches',
+      details: error instanceof Error ? error.message : String(error),
     });
   }
 });
@@ -291,6 +345,68 @@ router.get('/debug/files', async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch files',
       details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// GET /api/analyze/llm/providers - List available LLM providers
+router.get('/llm/providers', (req, res) => {
+  try {
+    const providers = LLMProviderFactory.getAvailableProviders();
+    const current = llmService.getProviderInfo();
+    
+    res.json({
+      providers,
+      current,
+    });
+  } catch (error) {
+    console.error('Get LLM providers error:', error);
+    res.status(500).json({
+      error: 'Failed to get LLM providers',
+    });
+  }
+});
+
+// POST /api/analyze/llm/configure - Configure LLM provider
+const configureLLMSchema = z.object({
+  provider: z.enum(['mammouth', 'moonshot']),
+  apiKey: z.string().min(1),
+  model: z.string().optional(),
+});
+
+router.post('/llm/configure', async (req, res) => {
+  try {
+    const result = configureLLMSchema.safeParse(req.body);
+    
+    if (!result.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: result.error.errors,
+      });
+    }
+
+    const { provider, apiKey, model } = result.data;
+    
+    llmService.configure(provider, {
+      apiKey,
+      model,
+    });
+    
+    // Test the configuration
+    const testResponse = await llmService.chat([
+      { role: 'user', content: 'Hello' },
+    ], { maxTokens: 10 });
+    
+    res.json({
+      success: true,
+      provider: llmService.getProviderInfo(),
+      testResponse: testResponse.content,
+    });
+  } catch (error: any) {
+    console.error('Configure LLM error:', error);
+    res.status(500).json({
+      error: 'Failed to configure LLM',
+      details: error.message,
     });
   }
 });

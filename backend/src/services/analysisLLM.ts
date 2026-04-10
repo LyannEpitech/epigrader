@@ -1,13 +1,20 @@
-import axios from 'axios';
 import { AnalyzedCriterion } from '../types/analysis.js';
 import { Criterion } from '../types/rubric.js';
+import { llmService, LLMService } from './llm/index.js';
 
-const MOONSHOT_API_URL = 'https://api.moonshot.ai/v1/chat/completions';
-const API_KEY = process.env.MOONSHOT_API_KEY || 'sk-3wnoZ7hg9ZDaR42aWt88JIyzgNw3XU1QZ2We8tPBlPA4MumV';
-
-export class MoonshotService {
+export class AnalysisLLMService {
+  private llm: LLMService;
+  
+  constructor() {
+    this.llm = llmService;
+    // Auto-configure from environment if not already done
+    if (!this.llm.isConfigured()) {
+      this.llm.autoConfigure();
+    }
+  }
+  
   /**
-   * Analyze a criterion using Moonshot API
+   * Analyze a criterion using the configured LLM provider
    */
   async analyzeCriterion(
     criterion: Criterion,
@@ -16,122 +23,27 @@ export class MoonshotService {
     try {
       const prompt = this.buildPrompt(criterion, repoFiles);
       
-      const response = await axios.post(
-        MOONSHOT_API_URL,
+      const response = await this.llm.chat([
         {
-          model: 'kimi-k2.5',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert code reviewer for Epitech projects. Analyze the code against the given criterion and provide a detailed assessment.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 1,
+          role: 'system',
+          content: 'You are an expert code reviewer for Epitech projects. Analyze the code against the given criterion and provide a detailed assessment.',
         },
         {
-          headers: {
-            'Authorization': `Bearer ${API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+          role: 'user',
+          content: prompt,
+        },
+      ], {
+        temperature: 1,
+        maxTokens: 1000,
+      });
 
-      const content = response.data.choices[0]?.message?.content || '';
+      const content = response.content;
       return this.parseResponse(criterion, content);
     } catch (error: any) {
-      console.error('Moonshot API error:', error.response?.status, error.response?.data || error.message);
+      console.error('LLM API error:', error.message);
       // Fallback to mock analysis if API fails
       return this.fallbackAnalysis(criterion);
     }
-  }
-
-  /**
-   * Prioritize files based on importance
-   */
-  private prioritizeFiles(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
-    const priorityOrder = [
-      'README',
-      'Makefile',
-      'main.c',
-      'main.cpp',
-      'main.py',
-      'main.js',
-      'main.ts',
-      'index.js',
-      'index.ts',
-      'app.js',
-      'app.ts',
-    ];
-
-    return files.sort((a, b) => {
-      const aPriority = priorityOrder.findIndex(p => a.path.toLowerCase().includes(p.toLowerCase()));
-      const bPriority = priorityOrder.findIndex(p => b.path.toLowerCase().includes(p.toLowerCase()));
-      
-      if (aPriority === -1 && bPriority === -1) return 0;
-      if (aPriority === -1) return 1;
-      if (bPriority === -1) return -1;
-      return aPriority - bPriority;
-    });
-  }
-
-  /**
-   * Compress file content by removing unnecessary whitespace and comments
-   */
-  private compressContent(content: string, filePath: string): string {
-    // Don't compress binary or data files
-    if (filePath.match(/\.(json|xml|yaml|yml|md|txt|csv)$/i)) {
-      return content;
-    }
-    
-    // Remove C-style comments (/* */ and //)
-    let compressed = content
-      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
-      .replace(/\/\/.*$/gm, '') // Remove // comments
-      .replace(/#.*$/gm, '') // Remove # comments (Python, shell)
-      .replace(/<!--[\s\S]*?-->/g, ''); // Remove HTML comments
-    
-    // Remove extra whitespace but preserve structure
-    let lines = compressed
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0); // Remove empty lines
-    
-    // Limit to max 300 lines per file to keep prompt size reasonable
-    const maxLines = 300;
-    if (lines.length > maxLines) {
-      // Keep first 150 lines and last 150 lines (usually contains important parts)
-      const firstPart = lines.slice(0, 150);
-      const lastPart = lines.slice(-150);
-      lines = [...firstPart, '\n... [truncated ' + (lines.length - 300) + ' lines] ...\n', ...lastPart];
-    }
-    
-    return lines.join('\n');
-  }
-
-  /**
-   * Group files by their directory
-   */
-  private groupFilesByDirectory(
-    files: Array<{ path: string; content: string }>
-  ): Record<string, Array<{ path: string; content: string }>> {
-    const groups: Record<string, Array<{ path: string; content: string }>> = {};
-    
-    for (const file of files) {
-      const dir = file.path.includes('/') 
-        ? file.path.substring(0, file.path.lastIndexOf('/'))
-        : '.';
-      
-      if (!groups[dir]) {
-        groups[dir] = [];
-      }
-      groups[dir].push(file);
-    }
-    
-    return groups;
   }
 
   /**
@@ -192,6 +104,62 @@ ${fileContents}
   }
 
   /**
+   * Group files by their directory
+   */
+  private groupFilesByDirectory(
+    files: Array<{ path: string; content: string }>
+  ): Record<string, Array<{ path: string; content: string }>> {
+    const groups: Record<string, Array<{ path: string; content: string }>> = {};
+    
+    for (const file of files) {
+      const dir = file.path.includes('/') 
+        ? file.path.substring(0, file.path.lastIndexOf('/'))
+        : '.';
+      
+      if (!groups[dir]) {
+        groups[dir] = [];
+      }
+      groups[dir].push(file);
+    }
+    
+    return groups;
+  }
+
+  /**
+   * Compress file content by removing unnecessary whitespace and comments
+   */
+  private compressContent(content: string, filePath: string): string {
+    // Don't compress binary or data files
+    if (filePath.match(/\.(json|xml|yaml|yml|md|txt|csv)$/i)) {
+      return content;
+    }
+    
+    // Remove C-style comments (/* */ and //)
+    let compressed = content
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
+      .replace(/\/\/.*$/gm, '') // Remove // comments
+      .replace(/#.*$/gm, '') // Remove # comments (Python, shell)
+      .replace(/<!--[\s\S]*?-->/g, ''); // Remove HTML comments
+    
+    // Remove extra whitespace but preserve structure
+    let lines = compressed
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0); // Remove empty lines
+    
+    // Limit to max 300 lines per file to keep prompt size reasonable
+    const maxLines = 300;
+    if (lines.length > maxLines) {
+      // Keep first 150 lines and last 150 lines (usually contains important parts)
+      const firstPart = lines.slice(0, 150);
+      const lastPart = lines.slice(-150);
+      lines = [...firstPart, '\n... [truncated ' + (lines.length - 300) + ' lines] ...\n', ...lastPart];
+    }
+    
+    return lines.join('\n');
+  }
+
+  /**
    * Parse the LLM response
    */
   private parseResponse(criterion: Criterion, content: string): AnalyzedCriterion {
@@ -237,4 +205,4 @@ ${fileContents}
   }
 }
 
-export default MoonshotService;
+export default AnalysisLLMService;

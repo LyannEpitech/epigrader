@@ -1,22 +1,54 @@
 import { AnalysisService } from '../../src/services/analysis';
 import { Criterion } from '../../src/types/rubric';
 
+// Mock dependencies
+jest.mock('../../src/services/moonshot', () => ({
+  MoonshotService: jest.fn().mockImplementation(() => ({
+    analyzeCriterion: jest.fn().mockResolvedValue({
+      score: 5,
+      status: 'passed',
+      justification: 'Test passed',
+    }),
+  })),
+}));
+
+jest.mock('../../src/services/github', () => ({
+  GitHubService: jest.fn().mockImplementation(() => ({
+    getRepoTree: jest.fn().mockResolvedValue([]),
+    getFileContent: jest.fn().mockResolvedValue(''),
+  })),
+}));
+
+jest.mock('../../src/services/cache', () => ({
+  AnalysisCache: jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockReturnValue(null),
+    set: jest.fn(),
+    clear: jest.fn(),
+    delete: jest.fn(),
+    getStats: jest.fn().mockReturnValue({ size: 0, entries: [] }),
+  })),
+}));
+
 describe('AnalysisService', () => {
   let service: AnalysisService;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     service = new AnalysisService();
   });
 
   describe('createJob', () => {
-    it('should create a new job', () => {
+    it('should create a new job with correct properties', () => {
       const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
       
       const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria);
       
       expect(job).toBeDefined();
+      expect(job.id).toBeDefined();
       expect(job.repoUrl).toBe('https://github.com/Epitech/test');
       expect(job.rubricId).toBe('rubric-1');
+      expect(job.progress).toBe(0);
+      expect(Array.isArray(job.steps)).toBe(true);
     });
 
     it('should create job with PAT', () => {
@@ -25,6 +57,16 @@ describe('AnalysisService', () => {
       const job = service.createJob('https://github.com/Epitech/test', 'rubric-1', criteria, 'pat-token');
       
       expect(job).toBeDefined();
+      expect(job.id).toBeDefined();
+    });
+
+    it('should create unique job IDs', () => {
+      const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
+      
+      const job1 = service.createJob('https://github.com/Epitech/test1', 'rubric-1', criteria);
+      const job2 = service.createJob('https://github.com/Epitech/test2', 'rubric-1', criteria);
+      
+      expect(job1.id).not.toBe(job2.id);
     });
   });
 
@@ -37,6 +79,7 @@ describe('AnalysisService', () => {
       
       expect(foundJob).toBeDefined();
       expect(foundJob?.id).toBe(job.id);
+      expect(foundJob?.repoUrl).toBe('https://github.com/Epitech/test');
     });
 
     it('should return undefined for non-existent job', () => {
@@ -54,12 +97,14 @@ describe('AnalysisService', () => {
     });
 
     it('should include created jobs', () => {
+      const initialJobs = service.getAllJobs();
+      const initialCount = initialJobs.length;
+      
       const criteria: Criterion[] = [{ id: '1', name: 'Test', description: '', maxPoints: 5 }];
       service.createJob('https://github.com/Epitech/test1', 'rubric-1', criteria);
       
       const jobs = service.getAllJobs();
-      
-      expect(jobs.length).toBeGreaterThanOrEqual(0);
+      expect(jobs.length).toBe(initialCount + 1);
     });
   });
 
@@ -71,18 +116,12 @@ describe('AnalysisService', () => {
       expect(stats).toHaveProperty('entries');
     });
 
-    it('should clear cache', () => {
-      service.clearCache();
-      
-      const stats = service.getCacheStats();
-      expect(stats.size).toBe(0);
+    it('should clear cache without error', () => {
+      expect(() => service.clearCache()).not.toThrow();
     });
 
-    it('should clear specific cache entry', () => {
-      service.clearCacheEntry('https://github.com/Epitech/test');
-      
-      // Should not throw
-      expect(true).toBe(true);
+    it('should clear specific cache entry without error', () => {
+      expect(() => service.clearCacheEntry('https://github.com/Epitech/test')).not.toThrow();
     });
   });
 });

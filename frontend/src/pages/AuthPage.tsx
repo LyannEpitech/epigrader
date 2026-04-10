@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGitHubAuth } from '../hooks/useGitHubAuth';
 import { useNotification } from '../contexts/NotificationContext';
 import { Github, Lock, Eye, EyeOff, Sparkles, Code2, BookOpen, CheckCircle } from 'lucide-react';
@@ -7,8 +8,16 @@ export const AuthPage = () => {
   const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useGitHubAuth();
+  const { login, isAuthenticated } = useGitHubAuth();
   const { success, error: showError } = useNotification();
+  const navigate = useNavigate();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +32,7 @@ export const AuthPage = () => {
 
     if (result) {
       success('Successfully authenticated with GitHub!');
+      navigate('/');
     } else {
       showError('Invalid GitHub PAT. Please check your token and try again.');
     }

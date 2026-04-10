@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { AnalyzePage } from '../src/pages/AnalyzePage';
 import { useAnalysis } from '../src/hooks/useAnalysis';
@@ -21,6 +21,10 @@ describe('AnalyzePage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Mock URL.createObjectURL for export functionality
+    global.URL.createObjectURL = vi.fn(() => 'blob:test');
+    global.URL.revokeObjectURL = vi.fn();
     
     vi.mocked(useAnalysis).mockReturnValue({
       job: null,

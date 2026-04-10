@@ -6,6 +6,7 @@ import { RubricPage } from './pages/RubricPage';
 import { AnalyzePage } from './pages/AnalyzePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { SettingsPage } from './pages/SettingsPage';
 import './App.css';
 
 function App() {
@@ -34,6 +35,10 @@ function App() {
         <Route 
           path="/history" 
           element={isAuthenticated ? <HistoryPage /> : <Navigate to="/auth" />} 
+        />
+        <Route 
+          path="/settings" 
+          element={<SettingsPage />} 
         />
       </Routes>
     </Router>

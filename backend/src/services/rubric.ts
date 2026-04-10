@@ -2,15 +2,20 @@ import { Criterion } from '../types/rubric.js';
 import axios from 'axios';
 
 const MOONSHOT_API_URL = 'https://api.moonshot.ai/v1/chat/completions';
-const API_KEY = process.env.MOONSHOT_API_KEY || 'sk-3wnoZ7hg9ZDaR42aWt88JIyzgNw3XU1QZ2We8tPBlPA4MumV';
+const API_KEY = process.env.MOONSHOT_API_KEY || '';
+
+console.log('[RubricService] MOONSHOT_API_KEY present:', !!API_KEY, 'Length:', API_KEY?.length || 0);
 
 export class RubricService {
   /**
    * Parse a rubric from any text format using LLM
    */
   async parseRubric(content: string): Promise<Criterion[]> {
+    console.log('[Rubric] Starting parse, content length:', content.length);
+    
     // Quick regex parse for simple markdown (fast path)
     const quickParse = this.quickParse(content);
+    console.log('[Rubric] Quick parse result:', quickParse.length, 'criteria');
     if (quickParse.length > 0) {
       console.log(`[Rubric] Quick parse found ${quickParse.length} criteria`);
       return quickParse;

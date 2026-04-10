@@ -9,8 +9,8 @@ export interface CacheEntry {
 }
 
 export const analysisApi = {
-  startAnalysis: async (repoUrl: string, rubricId: string, pat?: string): Promise<{ jobId: string; status: string }> => {
-    const response = await axios.post(`${API_URL}/analyze`, { repoUrl, rubricId, pat });
+  startAnalysis: async (repoUrl: string, rubricId: string, pat?: string, branch?: string): Promise<{ jobId: string; status: string }> => {
+    const response = await axios.post(`${API_URL}/analyze`, { repoUrl, rubricId, pat, branch });
     return response.data;
   },
 
@@ -30,5 +30,22 @@ export const analysisApi = {
 
   clearCacheEntry: async (repoUrl: string): Promise<void> => {
     await axios.delete(`${API_URL}/analyze/cache/entry?repoUrl=${encodeURIComponent(repoUrl)}`);
+  },
+
+  getBranches: async (repoUrl: string, pat?: string): Promise<{ branches: Array<{ name: string; default: boolean }> }> => {
+    const params = new URLSearchParams({ repoUrl });
+    if (pat) params.append('pat', pat);
+    const response = await axios.get(`${API_URL}/analyze/branches?${params.toString()}`);
+    return response.data;
+  },
+
+  getLLMProviders: async (): Promise<{ providers: Array<{ type: string; name: string; defaultModel: string }>; current: { type: string | null; name: string; configured: boolean } }> => {
+    const response = await axios.get(`${API_URL}/analyze/llm/providers`);
+    return response.data;
+  },
+
+  configureLLM: async (provider: string, apiKey: string, model?: string): Promise<{ success: boolean; provider: any; testResponse: string }> => {
+    const response = await axios.post(`${API_URL}/analyze/llm/configure`, { provider, apiKey, model });
+    return response.data;
   },
 };

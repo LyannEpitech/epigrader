@@ -7,14 +7,14 @@ jest.mock('../../src/services/rubricStorage', () => ({
     getAllRubrics: jest.fn().mockResolvedValue([
       { id: '1', name: 'Test Rubric', totalPoints: 20, criteria: [] },
     ]),
-    getRubricById: jest.fn().mockResolvedValue({
+    getRubric: jest.fn().mockResolvedValue({
       id: '1',
       name: 'Test Rubric',
       totalPoints: 20,
       criteria: [],
     }),
     saveRubric: jest.fn().mockResolvedValue('new-rubric-id'),
-    deleteRubric: jest.fn().mockResolvedValue(true),
+    deleteRubric: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -23,6 +23,7 @@ jest.mock('../../src/services/rubric', () => ({
     parseRubric: jest.fn().mockResolvedValue([
       { id: '1', name: 'Quality', description: 'Code quality', maxPoints: 10 },
     ]),
+    calculateTotalPoints: jest.fn().mockReturnValue(10),
   })),
 }));
 
@@ -42,7 +43,8 @@ describe('Rubric Routes', () => {
         .get('/api/rubric');
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.success).toBe(true);
+      expect(response.body).toHaveProperty('rubrics');
     });
   });
 
@@ -75,6 +77,7 @@ describe('Rubric Routes', () => {
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
+      expect(response.body.success).toBe(true);
     });
   });
 
@@ -84,7 +87,8 @@ describe('Rubric Routes', () => {
         .get('/api/rubric/1');
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('name');
+      expect(response.body.success).toBe(true);
+      expect(response.body).toHaveProperty('rubric');
     });
   });
 
@@ -114,6 +118,7 @@ describe('Rubric Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('criteria');
+      expect(response.body.success).toBe(true);
     });
   });
 });

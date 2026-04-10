@@ -1,3 +1,5 @@
+export type AnalysisStatus = 'pending' | 'processing' | 'completed' | 'error';
+
 export interface AnalysisStep {
   id: number;
   name: string;
@@ -7,10 +9,12 @@ export interface AnalysisStep {
 }
 
 export interface AnalysisJob {
-  id: string;
+  id?: string;
+  jobId?: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   repoUrl: string;
   rubricId: string;
+  branch?: string;
   progress: number;
   steps?: AnalysisStep[];
   result?: AnalysisResult;

@@ -9,7 +9,7 @@ export class GitHubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'EpiGrader/1.0',
     };
-    if (token && token.startsWith('ghp_') && token.length > 10) {
+    if (token && token.length > 10) {
       headers.Authorization = `Bearer ${token}`;
     }
     this.client = axios.create({
@@ -67,14 +67,45 @@ export class GitHubService {
     }
   }
 
-  async getFileContent(owner: string, repo: string, path: string): Promise<string> {
+  async getFileContent(owner: string, repo: string, path: string, sha?: string): Promise<string> {
     try {
+      // If sha is provided, use blobs API (for large files)
+      if (sha) {
+        console.log(`[GitHub] Using blobs API for ${path} with sha ${sha.substring(0, 8)}...`);
+        const response = await this.client.get(`/repos/${owner}/${repo}/git/blobs/${sha}`);
+        const content = response.data.content;
+        console.log(`[GitHub] Blobs API response for ${path}:`, { hasContent: !!content, size: response.data.size });
+        if (content) {
+          return Buffer.from(content, 'base64').toString('utf-8');
+        }
+        return '';
+      }
+
+      // Otherwise use contents API
       const response = await this.client.get(`/repos/${owner}/${repo}/contents/${path}`);
       const content = response.data.content;
+      
+      // Handle large files or symlinks that don't have content
+      if (!content) {
+        // Try to get sha and use blobs API
+        const sha = response.data.sha;
+        if (sha) {
+          console.log(`[GitHub] File ${path} too large for contents API, using blobs API`);
+          return this.getFileContent(owner, repo, path, sha);
+        }
+        console.warn(`[GitHub] No content for ${path} - may be a symlink or large file`);
+        return '';
+      }
+      
       return Buffer.from(content, 'base64').toString('utf-8');
-    } catch (error) {
+    } catch (error: any) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new Error('File not found');
+      }
+      // Handle 403 errors (too large)
+      if (axios.isAxiosError(error) && error.response?.status === 403) {
+        console.warn(`[GitHub] File ${path} too large or access denied`);
+        return '';
       }
       throw error;
     }
@@ -109,6 +140,29 @@ export class GitHubService {
       }));
     } catch (error) {
       throw new Error('Failed to fetch commits');
+    }
+  }
+
+  async getBranches(owner: string, repo: string): Promise<Array<{ name: string; default: boolean }>> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/branches`, {
+        params: { per_page: 100 },
+      });
+      return response.data.map((branch: { name: string; protected: boolean }) => ({
+        name: branch.name,
+        default: false, // Will be updated below
+      }));
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message;
+      const status = error.response?.status;
+      console.error(`[GitHub] getBranches error (${status}):`, message);
+      if (status === 404) {
+        throw new Error('Repository not found or private');
+      }
+      if (status === 403) {
+        throw new Error('Access denied - check your GitHub token');
+      }
+      throw new Error(`Failed to fetch branches: ${message}`);
     }
   }
 

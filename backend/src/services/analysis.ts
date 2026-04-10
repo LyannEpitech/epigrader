@@ -1,8 +1,10 @@
 import { AnalysisJob, AnalysisResult, AnalyzedCriterion, AnalysisStep } from '../types/analysis.js';
 import { Criterion } from '../types/rubric.js';
-import { MoonshotService } from './moonshot.js';
+import { AnalysisLLMService } from './analysisLLM.js';
 import { GitHubService } from './github.js';
 import { AnalysisCache } from './cache.js';
+import { wsService } from './websocket.js';
+import { llmService } from './llm/index.js';
 
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
@@ -12,25 +14,32 @@ const jobs = new Map<string, AnalysisJob>();
 const MAX_JOBS = 100;
 
 export class AnalysisService {
-  private moonshotService: MoonshotService;
+  private analysisLLM: AnalysisLLMService;
   private githubService: GitHubService;
   private cache: AnalysisCache;
 
   constructor() {
-    this.moonshotService = new MoonshotService();
+    this.analysisLLM = new AnalysisLLMService();
     this.githubService = new GitHubService(process.env.GITHUB_TOKEN || '');
     this.cache = new AnalysisCache();
+    
+    // Auto-configure LLM from environment
+    if (!llmService.isConfigured()) {
+      const configured = llmService.autoConfigure();
+      console.log('[AnalysisService] LLM auto-configure result:', configured, llmService.getProviderInfo());
+    }
   }
 
   /**
    * Create a new analysis job
    */
-  createJob(repoUrl: string, rubricId: string, criteria: Criterion[], pat?: string): AnalysisJob {
+  createJob(repoUrl: string, rubricId: string, criteria: Criterion[], pat?: string, branch?: string): AnalysisJob {
     const job: AnalysisJob = {
       id: this.generateJobId(),
       status: 'pending',
       repoUrl,
       rubricId,
+      branch,
       progress: 0,
       steps: [],
       createdAt: new Date().toISOString(),
@@ -39,8 +48,8 @@ export class AnalysisService {
 
     jobs.set(job.id, job);
     
-    // Start async processing with optional PAT
-    this.processJob(job, criteria, pat);
+    // Start async processing with optional PAT and branch
+    this.processJob(job, criteria, pat, branch);
 
     return job;
   }
@@ -84,23 +93,61 @@ export class AnalysisService {
   /**
    * Process job asynchronously with detailed steps
    */
-  private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string): Promise<void> {
+  private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string, branch?: string): Promise<void> {
     // Use provided PAT or fall back to environment token
     const githubToken = pat || process.env.GITHUB_TOKEN || '';
     const githubService = new GitHubService(githubToken);
+    
+    // Use specified branch or default to HEAD
+    const treeSha = branch || 'HEAD';
     const steps: AnalysisStep[] = [];
     
     const addStep = (name: string, status: 'pending' | 'running' | 'completed' | 'error', message?: string) => {
-      const step: AnalysisStep = {
-        id: steps.length + 1,
-        name,
-        status,
-        message,
-        timestamp: new Date().toISOString(),
-      };
-      steps.push(step);
-      job.steps = steps;
-      job.updatedAt = new Date().toISOString();
+      // Check if step with this name already exists
+      const existingIndex = steps.findIndex(s => s.name === name);
+      let step: AnalysisStep;
+      
+      if (existingIndex >= 0) {
+        // Update existing step
+        step = {
+          ...steps[existingIndex],
+          status,
+          message,
+          timestamp: new Date().toISOString(),
+        };
+        steps[existingIndex] = step;
+        job.steps = [...steps];
+        job.updatedAt = new Date().toISOString();
+        console.log(`[AnalysisService] Step updated: ${name} (${status})`);
+      } else {
+        // Create new step
+        step = {
+          id: steps.length + 1,
+          name,
+          status,
+          message,
+          timestamp: new Date().toISOString(),
+        };
+        steps.push(step);
+        job.steps = [...steps]; // Create new array reference
+        job.updatedAt = new Date().toISOString();
+        console.log(`[AnalysisService] Step added: ${name} (${status}) - Total steps: ${steps.length}`);
+      }
+      
+      // Emit WebSocket update
+      wsService.emitStepUpdate(job.id, step);
+      wsService.emitJobUpdate(job.id, {
+        jobId: job.id,
+        status: job.status,
+        progress: job.progress,
+        branch: job.branch,
+        steps: job.steps,
+        result: job.result,
+        error: job.error,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      });
+      
       return step;
     };
 
@@ -192,14 +239,22 @@ export class AnalysisService {
       let allFilePaths: string[] = [];
       
       try {
-        const tree = await githubService.getRepoTree(owner, repo);
-        allFilePaths = tree.filter(item => item.type === 'blob').map(item => item.path);
+        const tree = await githubService.getRepoTree(owner, repo, treeSha);
+        const treeItems = tree.filter(item => item.type === 'blob');
+        allFilePaths = treeItems.map(item => item.path);
         
-        addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files`);
+        // Add branch info to step if specified
+        const branchInfo = branch ? ` (branch: ${branch})` : '';
+        addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files${branchInfo}`);
+        
+        // Log all files for debugging
+        console.log('[AnalysisService] All files found:', allFilePaths.length, 'files');
+        console.log('[AnalysisService] Python files:', allFilePaths.filter(p => p.endsWith('.py')));
+        console.log('[AnalysisService] First 20 files:', allFilePaths.slice(0, 20));
         
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
-        repoFiles = await this.fetchRepoFiles(owner, repo, allFilePaths, githubService);
+        repoFiles = await this.fetchRepoFiles(owner, repo, treeItems, githubService);
         addStep('File Filtering', 'completed', `✅ Selected ${repoFiles.length} code files for analysis`);
         
         if (repoFiles.length === 0) {
@@ -216,36 +271,68 @@ export class AnalysisService {
         throw error;
       }
 
-      // Step 8: Analyze with LLM
-      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria...`);
-      const analyzedCriteria: AnalyzedCriterion[] = [];
+      // Step 8: Analyze with LLM (parallel processing for faster analysis)
+      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria in parallel...`);
       
-      for (let i = 0; i < criteria.length; i++) {
-        const criterion = criteria[i];
-        const stepName = `Analyzing: ${criterion.name}`;
-        addStep(stepName, 'running', `(${i + 1}/${criteria.length}) Analyzing criterion...`);
-        
+      // Process all criteria in parallel with concurrency limit
+      const concurrencyLimit = 5; // Process 5 criteria simultaneously
+      const analyzedCriteria: AnalyzedCriterion[] = new Array(criteria.length);
+      let completedCount = 0;
+      
+      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria with ${concurrencyLimit}x parallelism...`);
+      
+      // Process criteria with limited concurrency
+      const processCriterion = async (criterion: Criterion, index: number): Promise<void> => {
         try {
-          const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
-          analyzedCriteria.push(analyzed);
-          addStep(stepName, 'completed', `✅ Score: ${analyzed.score}/${criterion.maxPoints} - ${analyzed.status}`);
+          const analyzed = await this.analysisLLM.analyzeCriterion(criterion, repoFiles);
+          analyzedCriteria[index] = analyzed;
         } catch (error) {
-          addStep(stepName, 'error', `❌ Analysis failed`);
-          analyzedCriteria.push({
+          analyzedCriteria[index] = {
             id: criterion.id,
             name: criterion.name,
             description: criterion.description,
             maxPoints: criterion.maxPoints,
             score: 0,
-            status: 'failed',
+            status: 'failed' as const,
             justification: 'Analysis failed due to an error',
             references: [],
-          });
+          };
         }
         
-        job.progress = Math.round(((i + 1) / criteria.length) * 80) + 10;
+        completedCount++;
+        job.progress = Math.round((completedCount / criteria.length) * 80) + 10;
         job.updatedAt = new Date().toISOString();
+        
+        // Update step message periodically
+        if (completedCount % 2 === 0 || completedCount === criteria.length) {
+          addStep('LLM Analysis', 'running', `Analyzed ${completedCount}/${criteria.length} criteria...`);
+        }
+      };
+      
+      // Process with concurrency limit
+      const queue = [...criteria.entries()];
+      const running: Promise<void>[] = [];
+      
+      while (queue.length > 0 || running.length > 0) {
+        // Start new tasks up to concurrency limit
+        while (running.length < concurrencyLimit && queue.length > 0) {
+          const [index, criterion] = queue.shift()!;
+          running.push(processCriterion(criterion, index));
+        }
+        
+        // Wait for at least one task to complete
+        if (running.length > 0) {
+          await Promise.race(running);
+          // Remove completed tasks
+          for (let i = running.length - 1; i >= 0; i--) {
+            if (await Promise.race([running[i], Promise.resolve('pending')]) !== 'pending') {
+              running.splice(i, 1);
+            }
+          }
+        }
       }
+      
+      addStep('LLM Analysis', 'completed', `✅ Analyzed ${criteria.length} criteria`);
 
       // Step 9: Generate Report
       addStep('Report Generation', 'running', 'Generating final report...');
@@ -285,11 +372,12 @@ export class AnalysisService {
   private async fetchRepoFiles(
     owner: string,
     repo: string,
-    allFilePaths: string[],
+    treeItems: Array<{ path: string; sha?: string }>,
     githubService: GitHubService,
-    maxFiles: number = 50
+    maxFiles: number = 100
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
+    const allFilePaths = treeItems.map(item => item.path);
     
     // Supported file extensions
     const codeExtensions = [
@@ -343,6 +431,7 @@ export class AnalysisService {
       if (path.includes('target/')) return false;
       if (path.includes('bin/')) return false;
       if (path.includes('obj/')) return false;
+      if (path.includes('results/')) return false;  // Exclude generated results
       
       const lowerPath = path.toLowerCase();
       const fileName = lowerPath.split('/').pop() || '';
@@ -350,6 +439,10 @@ export class AnalysisService {
       if (codeExtensions.includes(fileName)) return true;
       return codeExtensions.some(ext => lowerPath.endsWith(ext));
     });
+    
+    console.log('[AnalysisService] Files after filtering:', codeFiles.length, 'files');
+    console.log('[AnalysisService] Python files after filtering:', codeFiles.filter(p => p.endsWith('.py')));
+    console.log('[AnalysisService] First 20 filtered files:', codeFiles.slice(0, 20));
 
     // Prioritize important files first
     const priorityOrder = [
@@ -357,6 +450,9 @@ export class AnalysisService {
       'Makefile', 'makefile', 'GNUmakefile',
       'main.', 'index.', 'app.', 'server.',
       'package.json', 'Cargo.toml', 'go.mod', 'requirements.txt',
+      '.py',  // Prioritize Python files
+      '.js', '.ts',
+      '.c', '.cpp', '.h',
     ];
     
     const prioritizedFiles = codeFiles.sort((a, b) => {
@@ -368,19 +464,31 @@ export class AnalysisService {
       return aPriority - bPriority;
     });
 
-    // Fetch content for each file (limited to maxFiles)
-    for (const filePath of prioritizedFiles.slice(0, maxFiles)) {
-      try {
-        const content = await githubService.getFileContent(owner, repo, filePath);
-        if (content) {
-          files.push({ path: filePath, content });
+    // Fetch content for each file in parallel (limited to maxFiles)
+    const filesToFetch = prioritizedFiles.slice(0, maxFiles);
+    console.log('[AnalysisService] Files to fetch:', filesToFetch);
+    
+    // Create a map of path to sha for quick lookup
+    const shaMap = new Map(treeItems.map(item => [item.path, item.sha]));
+    
+    const fileContents = await Promise.all(
+      filesToFetch.map(async (filePath) => {
+        try {
+          console.log('[AnalysisService] Fetching:', filePath);
+          const sha = shaMap.get(filePath);
+          const content = await githubService.getFileContent(owner, repo, filePath, sha);
+          console.log('[AnalysisService] Fetched:', filePath, 'size:', content?.length);
+          return content ? { path: filePath, content } : null;
+        } catch (e: any) {
+          console.warn(`[AnalysisService] Failed to fetch ${filePath}:`, e.message);
+          return null;
         }
-      } catch (e) {
-        console.warn(`Failed to fetch ${filePath}:`, e);
-      }
-    }
+      })
+    );
 
-    return files;
+    const result = fileContents.filter((f): f is { path: string; content: string } => f !== null);
+    console.log('[AnalysisService] Files successfully loaded:', result.length);
+    return result;
   }
 
   /**
