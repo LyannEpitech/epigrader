@@ -35,6 +35,8 @@ router.post('/validate-token', async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Auth error details:', error);
+    
     if (error instanceof Error) {
       if (error.message === 'Invalid token' || error.message.includes('GitHub API error')) {
         return res.status(401).json({
@@ -44,7 +46,6 @@ router.post('/validate-token', async (req, res) => {
       }
     }
     
-    console.error('Auth error:', error);
     res.status(500).json({
       valid: false,
       error: 'Internal server error',
