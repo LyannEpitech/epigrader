@@ -107,7 +107,7 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
             
             return (
               <div
-                key={step.name}
+                key={step.id}
                 ref={isCurrent ? currentStepRef : null}
                 className={`relative flex items-start gap-4 p-4 rounded-xl transition-all duration-300 ${
                   isCurrent 
