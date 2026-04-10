@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import type { AnalysisStep, AnalysisStatus } from '../types/analysis';
 import { 
   Settings, Shield, Search, GitBranch, Brain, FileCheck, 
@@ -19,16 +19,32 @@ const stepIcons: Record<string, React.ElementType> = {
   'Report Generation': FileCheck,
 };
 
-
+// Default steps to show while waiting for real steps
+const defaultSteps: AnalysisStep[] = [
+  { id: 1, name: 'Configuration', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+  { id: 2, name: 'GitHub Auth', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+  { id: 3, name: 'Repository Fetch', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+  { id: 4, name: 'Code Analysis', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+  { id: 5, name: 'AI Processing', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+  { id: 6, name: 'Report Generation', status: 'pending', message: 'En attente...', timestamp: new Date().toISOString() },
+];
 
 export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentStepRef = useRef<HTMLDivElement>(null);
 
+  // Use real steps if available, otherwise use default steps
+  const displaySteps = useMemo(() => 
+    steps.length > 0 ? steps : defaultSteps,
+    [steps]
+  );
+
+  const completedCount = displaySteps.filter(s => s.status === 'completed').length;
+  const progress = (completedCount / displaySteps.length) * 100;
+
   // Auto-scroll to current step
   useEffect(() => {
     if (currentStepRef.current && containerRef.current) {
-      // Check if scrollIntoView is available (not in test environment)
       if (typeof currentStepRef.current.scrollIntoView === 'function') {
         currentStepRef.current.scrollIntoView({
           behavior: 'smooth',
@@ -36,44 +52,17 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
         });
       }
     }
-  }, [steps]);
+  }, [displaySteps]);
 
   const getStepStatus = (step: AnalysisStep, index: number) => {
     if (step.status === 'completed') return 'completed';
     if (step.status === 'error') return 'error';
     if (step.status === 'running' || 
-        (index === steps.findIndex(s => s.status === 'pending') && currentStatus === 'processing')) {
+        (index === displaySteps.findIndex(s => s.status === 'pending') && currentStatus === 'processing')) {
       return 'processing';
     }
     return 'pending';
   };
-
-  const completedCount = steps.filter(s => s.status === 'completed').length;
-  const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
-
-  // Show loading state if no steps yet
-  if (steps.length === 0) {
-    return (
-      <div className="w-full">
-        <div className="flex items-center justify-center py-8">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="text-gray-600">Initialisation de l'analyse...</span>
-          </div>
-        </div>
-        
-        {/* Animated Progress Bar */}
-        <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1e3a5f] to-[#2d5a87] rounded-full transition-all duration-500 ease-out"
-            style={{ width: '10%' }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full">
@@ -84,7 +73,7 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
             Progression de l'analyse
           </span>
           <span className="text-sm font-semibold text-gray-900">
-            {completedCount} / {steps.length} étapes
+            {completedCount} / {displaySteps.length} étapes
           </span>
         </div>
         
@@ -94,7 +83,6 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#1e3a5f] to-[#2d5a87] rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           >
-            {/* Shimmer effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
           </div>
         </div>
@@ -112,7 +100,7 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
         />
 
         <div className="space-y-4">
-          {steps.map((step, index) => {
+          {displaySteps.map((step, index) => {
             const status = getStepStatus(step, index);
             const Icon = stepIcons[step.name] || Circle;
             const isCurrent = status === 'processing';
