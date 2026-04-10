@@ -6,7 +6,7 @@ interface UseAnalysisReturn {
   job: AnalysisJob | null;
   isLoading: boolean;
   error: string | null;
-  startAnalysis: (repoUrl: string, rubricId: string) => Promise<void>;
+  startAnalysis: (repoUrl: string, rubricId: string, branch?: string) => Promise<void>;
   clear: () => void;
 }
 
@@ -44,7 +44,7 @@ export const useAnalysis = (): UseAnalysisReturn => {
     }
   }, []);
 
-  const startAnalysis = useCallback(async (repoUrl: string, rubricId: string) => {
+  const startAnalysis = useCallback(async (repoUrl: string, rubricId: string, branch?: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -57,7 +57,7 @@ export const useAnalysis = (): UseAnalysisReturn => {
       // Get PAT from sessionStorage if available
       const pat = sessionStorage.getItem('github_pat') || undefined;
       
-      const response = await analysisApi.startAnalysis(repoUrl, rubricId, pat);
+      const response = await analysisApi.startAnalysis(repoUrl, rubricId, pat, branch);
       
       // Get initial job status
       const jobStatus = await analysisApi.getJobStatus(response.jobId);

@@ -8,6 +8,7 @@ import { GitBranch, Play, Loader2, Sparkles, CheckCircle, XCircle, AlertCircle, 
 
 export const AnalyzePage = () => {
   const [repoUrl, setRepoUrl] = useState('');
+  const [branch, setBranch] = useState('');
   const [selectedRubricId, setSelectedRubricId] = useState('');
   const [savedRubrics, setSavedRubrics] = useState<any[]>([]);
   const { job, isLoading, error, startAnalysis, clear } = useAnalysis();
@@ -31,7 +32,7 @@ export const AnalyzePage = () => {
       return;
     }
     
-    await startAnalysis(repoUrl, selectedRubricId);
+    await startAnalysis(repoUrl, selectedRubricId, branch || undefined);
     success('Analysis started successfully!');
   };
 
@@ -106,6 +107,23 @@ export const AnalyzePage = () => {
                     Please enter a valid GitHub URL
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Branch (optional)
+                </label>
+                <input
+                  type="text"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  placeholder="main (default)"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent transition-all"
+                  disabled={isLoading || job?.status === 'processing'}
+                />
+                <p className="mt-1 text-sm text-gray-500">
+                  Leave empty to use the default branch
+                </p>
               </div>
 
               <div>
@@ -216,6 +234,12 @@ export const AnalyzePage = () => {
 
             {job?.status === 'completed' && job.result && (
               <div className="space-y-4">
+                {job.branch && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                    <GitBranch className="w-4 h-4" />
+                    Branch: <span className="font-medium">{job.branch}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center p-4 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl">
                   <span className="font-medium text-emerald-900">Total Score</span>
                   <span className="text-3xl font-bold text-emerald-600">

@@ -11,6 +11,7 @@ export interface AnalysisJob {
   status: 'pending' | 'processing' | 'completed' | 'error';
   repoUrl: string;
   rubricId: string;
+  branch?: string;
   progress: number;
   steps?: AnalysisStep[];
   result?: AnalysisResult;

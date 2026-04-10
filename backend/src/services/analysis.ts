@@ -25,12 +25,13 @@ export class AnalysisService {
   /**
    * Create a new analysis job
    */
-  createJob(repoUrl: string, rubricId: string, criteria: Criterion[], pat?: string): AnalysisJob {
+  createJob(repoUrl: string, rubricId: string, criteria: Criterion[], pat?: string, branch?: string): AnalysisJob {
     const job: AnalysisJob = {
       id: this.generateJobId(),
       status: 'pending',
       repoUrl,
       rubricId,
+      branch,
       progress: 0,
       steps: [],
       createdAt: new Date().toISOString(),
@@ -39,8 +40,8 @@ export class AnalysisService {
 
     jobs.set(job.id, job);
     
-    // Start async processing with optional PAT
-    this.processJob(job, criteria, pat);
+    // Start async processing with optional PAT and branch
+    this.processJob(job, criteria, pat, branch);
 
     return job;
   }
@@ -84,10 +85,13 @@ export class AnalysisService {
   /**
    * Process job asynchronously with detailed steps
    */
-  private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string): Promise<void> {
+  private async processJob(job: AnalysisJob, criteria: Criterion[], pat?: string, branch?: string): Promise<void> {
     // Use provided PAT or fall back to environment token
     const githubToken = pat || process.env.GITHUB_TOKEN || '';
     const githubService = new GitHubService(githubToken);
+    
+    // Use specified branch or default to HEAD
+    const treeSha = branch || 'HEAD';
     const steps: AnalysisStep[] = [];
     
     const addStep = (name: string, status: 'pending' | 'running' | 'completed' | 'error', message?: string) => {
@@ -193,10 +197,12 @@ export class AnalysisService {
       let allFilePaths: string[] = [];
       
       try {
-        const tree = await githubService.getRepoTree(owner, repo);
+        const tree = await githubService.getRepoTree(owner, repo, treeSha);
         allFilePaths = tree.filter(item => item.type === 'blob').map(item => item.path);
         
-        addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files`);
+        // Add branch info to step if specified
+        const branchInfo = branch ? ` (branch: ${branch})` : '';
+        addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files${branchInfo}`);
         
         // Log all files for debugging
         console.log('[AnalysisService] All files found:', allFilePaths);

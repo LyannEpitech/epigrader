@@ -9,8 +9,8 @@ export interface CacheEntry {
 }
 
 export const analysisApi = {
-  startAnalysis: async (repoUrl: string, rubricId: string, pat?: string): Promise<{ jobId: string; status: string }> => {
-    const response = await axios.post(`${API_URL}/analyze`, { repoUrl, rubricId, pat });
+  startAnalysis: async (repoUrl: string, rubricId: string, pat?: string, branch?: string): Promise<{ jobId: string; status: string }> => {
+    const response = await axios.post(`${API_URL}/analyze`, { repoUrl, rubricId, pat, branch });
     return response.data;
   },
 

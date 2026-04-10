@@ -32,6 +32,7 @@ const startAnalysisSchema = z.object({
   repoUrl: z.string().min(1, 'Repository URL is required'),
   rubricId: z.string().min(1, 'Rubric ID is required'),
   pat: z.string().optional(),
+  branch: z.string().optional(),
 });
 
 // POST /api/analyze - Start analysis job
@@ -46,7 +47,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const { repoUrl, rubricId, pat } = result.data;
+    const { repoUrl, rubricId, pat, branch } = result.data;
 
     // Get rubric from storage
     const rubric = await rubricStorage.getRubric(rubricId);
@@ -56,8 +57,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create analysis job with optional PAT
-    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat);
+    // Create analysis job with optional PAT and branch
+    const job = analysisService.createJob(repoUrl, rubricId, rubric.criteria, pat, branch);
 
     res.status(202).json({
       success: true,
@@ -145,6 +146,7 @@ router.get('/status/:jobId', (req, res) => {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
+      branch: job.branch,
       steps: job.steps,
       result: job.result,
       error: job.error,
@@ -170,6 +172,7 @@ router.get('/history', (req, res) => {
         jobId: job.id,
         repoUrl: job.repoUrl,
         rubricId: job.rubricId,
+        branch: job.branch,
         status: job.status,
         progress: job.progress,
         steps: job.steps,
