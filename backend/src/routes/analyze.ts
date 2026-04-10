@@ -204,6 +204,49 @@ router.get('/cache/stats', (req, res) => {
   }
 });
 
+// GET /api/analyze/branches - Get branches for a repository
+router.get('/branches', async (req, res) => {
+  try {
+    const repoUrl = req.query.repoUrl as string;
+    if (!repoUrl) {
+      return res.status(400).json({ error: 'repoUrl query param required' });
+    }
+
+    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) {
+      return res.status(400).json({ error: 'Invalid GitHub URL' });
+    }
+
+    const owner = match[1];
+    const repo = match[2].replace(/\.git$/, '');
+
+    const branches = await githubService.getBranches(owner, repo);
+    
+    // Get default branch info
+    try {
+      const repoInfo = await githubService.getRepo(owner, repo);
+      const defaultBranch = repoInfo.default_branch;
+      
+      // Mark default branch
+      branches.forEach(b => {
+        if (b.name === defaultBranch) {
+          b.default = true;
+        }
+      });
+    } catch (e) {
+      console.warn('[API] Could not get default branch:', e);
+    }
+
+    res.json({ branches });
+  } catch (error) {
+    console.error('Get branches error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch branches',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 // GET /api/analyze/debug/files - Debug: list files in repo
 router.get('/debug/files', async (req, res) => {
   try {

@@ -4,11 +4,14 @@ import { useNotification } from '../contexts/NotificationContext';
 import { AnalysisSteps } from '../components/AnalysisSteps';
 import { CacheManager } from '../components/CacheManager';
 import { rubricApi } from '../services/rubric';
+import { analysisApi } from '../services/analysis';
 import { GitBranch, Play, Loader2, Sparkles, CheckCircle, XCircle, AlertCircle, Download, FileText } from 'lucide-react';
 
 export const AnalyzePage = () => {
   const [repoUrl, setRepoUrl] = useState('');
   const [branch, setBranch] = useState('');
+  const [branches, setBranches] = useState<Array<{ name: string; default: boolean }>>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
   const [selectedRubricId, setSelectedRubricId] = useState('');
   const [savedRubrics, setSavedRubrics] = useState<any[]>([]);
   const { job, isLoading, error, startAnalysis, clear } = useAnalysis();
@@ -17,6 +20,39 @@ export const AnalyzePage = () => {
   useEffect(() => {
     rubricApi.getAllRubrics().then(rubrics => setSavedRubrics(rubrics));
   }, []);
+
+  // Fetch branches when repoUrl changes
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (!isValidGitHubUrl(repoUrl)) {
+        setBranches([]);
+        setBranch('');
+        return;
+      }
+
+      setLoadingBranches(true);
+      try {
+        const data = await analysisApi.getBranches(repoUrl);
+        setBranches(data.branches);
+        // Auto-select default branch
+        const defaultBranch = data.branches.find(b => b.default);
+        if (defaultBranch) {
+          setBranch(defaultBranch.name);
+        } else if (data.branches.length > 0) {
+          setBranch(data.branches[0].name);
+        }
+      } catch (err) {
+        console.error('Failed to fetch branches:', err);
+        setBranches([]);
+        setBranch('');
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchBranches, 500); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [repoUrl]);
 
   const handleStart = async () => {
     if (!repoUrl.trim()) {
@@ -111,18 +147,33 @@ export const AnalyzePage = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Branch (optional)
+                  Branch
                 </label>
-                <input
-                  type="text"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  placeholder="main (default)"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent transition-all"
-                  disabled={isLoading || job?.status === 'processing'}
-                />
+                <div className="relative">
+                  <select
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent transition-all appearance-none bg-white"
+                    disabled={isLoading || job?.status === 'processing' || loadingBranches || branches.length === 0}
+                  >
+                    {branches.length === 0 ? (
+                      <option value="">{loadingBranches ? 'Loading branches...' : 'Enter a valid repo URL first'}</option>
+                    ) : (
+                      branches.map((b) => (
+                        <option key={b.name} value={b.name}>
+                          {b.name} {b.default ? '(default)' : ''}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {loadingBranches && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-gray-500">
-                  Leave empty to use the default branch
+                  {branches.length > 0 ? `${branches.length} branch(es) found` : 'Branches will load automatically when you enter a valid URL'}
                 </p>
               </div>
 

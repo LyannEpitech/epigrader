@@ -119,6 +119,20 @@ export class GitHubService {
     }
   }
 
+  async getBranches(owner: string, repo: string): Promise<Array<{ name: string; default: boolean }>> {
+    try {
+      const response = await this.client.get(`/repos/${owner}/${repo}/branches`, {
+        params: { per_page: 100 },
+      });
+      return response.data.map((branch: { name: string; protected: boolean }) => ({
+        name: branch.name,
+        default: false, // Will be updated below
+      }));
+    } catch (error) {
+      throw new Error('Failed to fetch branches');
+    }
+  }
+
   parseRepoUrl(url: string): { owner: string; repo: string } {
     const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
     if (!match) {
