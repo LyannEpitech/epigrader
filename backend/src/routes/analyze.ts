@@ -145,6 +145,7 @@ router.get('/status/:jobId', (req, res) => {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
+      steps: job.steps,
       result: job.result,
       error: job.error,
       createdAt: job.createdAt,
