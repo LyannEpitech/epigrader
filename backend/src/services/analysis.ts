@@ -95,6 +95,24 @@ export class AnalysisService {
     const steps: AnalysisStep[] = [];
     
     const addStep = (name: string, status: 'pending' | 'running' | 'completed' | 'error', message?: string) => {
+      // Check if step with this name already exists
+      const existingIndex = steps.findIndex(s => s.name === name);
+      
+      if (existingIndex >= 0) {
+        // Update existing step
+        steps[existingIndex] = {
+          ...steps[existingIndex],
+          status,
+          message,
+          timestamp: new Date().toISOString(),
+        };
+        job.steps = [...steps];
+        job.updatedAt = new Date().toISOString();
+        console.log(`[AnalysisService] Step updated: ${name} (${status})`);
+        return steps[existingIndex];
+      }
+      
+      // Create new step
       const step: AnalysisStep = {
         id: steps.length + 1,
         name,
