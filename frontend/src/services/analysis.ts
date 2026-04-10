@@ -32,8 +32,10 @@ export const analysisApi = {
     await axios.delete(`${API_URL}/analyze/cache/entry?repoUrl=${encodeURIComponent(repoUrl)}`);
   },
 
-  getBranches: async (repoUrl: string): Promise<{ branches: Array<{ name: string; default: boolean }> }> => {
-    const response = await axios.get(`${API_URL}/analyze/branches?repoUrl=${encodeURIComponent(repoUrl)}`);
+  getBranches: async (repoUrl: string, pat?: string): Promise<{ branches: Array<{ name: string; default: boolean }> }> => {
+    const params = new URLSearchParams({ repoUrl });
+    if (pat) params.append('pat', pat);
+    const response = await axios.get(`${API_URL}/analyze/branches?${params.toString()}`);
     return response.data;
   },
 };

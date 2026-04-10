@@ -32,7 +32,8 @@ export const AnalyzePage = () => {
 
       setLoadingBranches(true);
       try {
-        const data = await analysisApi.getBranches(repoUrl);
+        const pat = sessionStorage.getItem('github_pat') || undefined;
+        const data = await analysisApi.getBranches(repoUrl, pat);
         setBranches(data.branches);
         // Auto-select default branch
         const defaultBranch = data.branches.find(b => b.default);

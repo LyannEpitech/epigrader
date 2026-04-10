@@ -208,6 +208,8 @@ router.get('/cache/stats', (req, res) => {
 router.get('/branches', async (req, res) => {
   try {
     const repoUrl = req.query.repoUrl as string;
+    const pat = req.query.pat as string | undefined;
+    
     if (!repoUrl) {
       return res.status(400).json({ error: 'repoUrl query param required' });
     }
@@ -220,11 +222,15 @@ router.get('/branches', async (req, res) => {
     const owner = match[1];
     const repo = match[2].replace(/\.git$/, '');
 
-    const branches = await githubService.getBranches(owner, repo);
+    // Use user's PAT if provided, otherwise use default
+    const token = pat || process.env.GITHUB_TOKEN || '';
+    const service = new GitHubService(token);
+
+    const branches = await service.getBranches(owner, repo);
     
     // Get default branch info
     try {
-      const repoInfo = await githubService.getRepo(owner, repo);
+      const repoInfo = await service.getRepo(owner, repo);
       const defaultBranch = repoInfo.default_branch;
       
       // Mark default branch

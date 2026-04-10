@@ -128,8 +128,17 @@ export class GitHubService {
         name: branch.name,
         default: false, // Will be updated below
       }));
-    } catch (error) {
-      throw new Error('Failed to fetch branches');
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message;
+      const status = error.response?.status;
+      console.error(`[GitHub] getBranches error (${status}):`, message);
+      if (status === 404) {
+        throw new Error('Repository not found or private');
+      }
+      if (status === 403) {
+        throw new Error('Access denied - check your GitHub token');
+      }
+      throw new Error(`Failed to fetch branches: ${message}`);
     }
   }
 
