@@ -71,6 +71,13 @@ export class GitHubService {
     try {
       const response = await this.client.get(`/repos/${owner}/${repo}/contents/${path}`);
       const content = response.data.content;
+      
+      // Handle large files or symlinks that don't have content
+      if (!content) {
+        console.warn(`[GitHub] No content for ${path} - may be a symlink or large file`);
+        return '';
+      }
+      
       return Buffer.from(content, 'base64').toString('utf-8');
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {

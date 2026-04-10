@@ -198,8 +198,8 @@ export class AnalysisService {
         
         addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files`);
         
-        // Log first 10 files for debugging
-        console.log('[AnalysisService] First 10 files found:', allFilePaths.slice(0, 10));
+        // Log all files for debugging
+        console.log('[AnalysisService] All files found:', allFilePaths);
         
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
@@ -371,6 +371,8 @@ export class AnalysisService {
       if (codeExtensions.includes(fileName)) return true;
       return codeExtensions.some(ext => lowerPath.endsWith(ext));
     });
+    
+    console.log('[AnalysisService] Files after filtering:', codeFiles.length, codeFiles.slice(0, 10));
 
     // Prioritize important files first
     const priorityOrder = [
@@ -391,19 +393,25 @@ export class AnalysisService {
 
     // Fetch content for each file in parallel (limited to maxFiles)
     const filesToFetch = prioritizedFiles.slice(0, maxFiles);
+    console.log('[AnalysisService] Files to fetch:', filesToFetch);
+    
     const fileContents = await Promise.all(
       filesToFetch.map(async (filePath) => {
         try {
+          console.log('[AnalysisService] Fetching:', filePath);
           const content = await githubService.getFileContent(owner, repo, filePath);
+          console.log('[AnalysisService] Fetched:', filePath, 'size:', content?.length, 'content preview:', content?.substring(0, 100));
           return content ? { path: filePath, content } : null;
-        } catch (e) {
-          console.warn(`Failed to fetch ${filePath}:`, e);
+        } catch (e: any) {
+          console.warn(`[AnalysisService] Failed to fetch ${filePath}:`, e.message);
           return null;
         }
       })
     );
 
-    return fileContents.filter((f): f is { path: string; content: string } => f !== null);
+    const result = fileContents.filter((f): f is { path: string; content: string } => f !== null);
+    console.log('[AnalysisService] Files successfully loaded:', result.length);
+    return result;
   }
 
   /**
