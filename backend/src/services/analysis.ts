@@ -198,6 +198,9 @@ export class AnalysisService {
         
         addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files`);
         
+        // Log first 10 files for debugging
+        console.log('[AnalysisService] First 10 files found:', allFilePaths.slice(0, 10));
+        
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
         repoFiles = await this.fetchRepoFiles(owner, repo, allFilePaths, githubService);
