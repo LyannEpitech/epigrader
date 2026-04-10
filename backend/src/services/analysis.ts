@@ -99,8 +99,9 @@ export class AnalysisService {
         timestamp: new Date().toISOString(),
       };
       steps.push(step);
-      job.steps = steps;
+      job.steps = [...steps]; // Create new array reference
       job.updatedAt = new Date().toISOString();
+      console.log(`[AnalysisService] Step added: ${name} (${status}) - Total steps: ${steps.length}`);
       return step;
     };
 

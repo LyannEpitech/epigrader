@@ -28,6 +28,7 @@ export const useAnalysis = (): UseAnalysisReturn => {
   const pollJobStatus = useCallback(async (jobId: string) => {
     try {
       const jobStatus = await analysisApi.getJobStatus(jobId);
+      console.log('[useAnalysis] Polled job status:', jobStatus.status, 'steps:', jobStatus.steps?.length);
       setJob(jobStatus);
 
       // Stop polling if job is completed or errored
