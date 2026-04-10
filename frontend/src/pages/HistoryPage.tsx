@@ -38,7 +38,7 @@ export const HistoryPage = () => {
     }
 
     const doc = new jsPDF();
-    const repoName = job.repoUrl.split('/').pop() || 'repository';
+    const repoName = job.repoUrl?.split('/').pop() || 'repository';
     
     // Header
     doc.setFontSize(20);
@@ -48,7 +48,7 @@ export const HistoryPage = () => {
     // Repository info
     doc.setFontSize(12);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Repository: ${job.repoUrl}`, 14, 35);
+    doc.text(`Repository: ${job.repoUrl || 'N/A'}`, 14, 35);
     doc.text(`Date: ${new Date(job.createdAt).toLocaleString('fr-FR')}`, 14, 42);
     doc.text(`Status: ${job.status}`, 14, 49);
     
