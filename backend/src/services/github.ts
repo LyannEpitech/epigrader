@@ -71,8 +71,10 @@ export class GitHubService {
     try {
       // If sha is provided, use blobs API (for large files)
       if (sha) {
+        console.log(`[GitHub] Using blobs API for ${path} with sha ${sha.substring(0, 8)}...`);
         const response = await this.client.get(`/repos/${owner}/${repo}/git/blobs/${sha}`);
         const content = response.data.content;
+        console.log(`[GitHub] Blobs API response for ${path}:`, { hasContent: !!content, size: response.data.size });
         if (content) {
           return Buffer.from(content, 'base64').toString('utf-8');
         }
