@@ -3,6 +3,7 @@ import { Criterion } from '../types/rubric.js';
 import { MoonshotService } from './moonshot.js';
 import { GitHubService } from './github.js';
 import { AnalysisCache } from './cache.js';
+import { wsService } from './websocket.js';
 
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
@@ -97,33 +98,49 @@ export class AnalysisService {
     const addStep = (name: string, status: 'pending' | 'running' | 'completed' | 'error', message?: string) => {
       // Check if step with this name already exists
       const existingIndex = steps.findIndex(s => s.name === name);
+      let step: AnalysisStep;
       
       if (existingIndex >= 0) {
         // Update existing step
-        steps[existingIndex] = {
+        step = {
           ...steps[existingIndex],
           status,
           message,
           timestamp: new Date().toISOString(),
         };
+        steps[existingIndex] = step;
         job.steps = [...steps];
         job.updatedAt = new Date().toISOString();
         console.log(`[AnalysisService] Step updated: ${name} (${status})`);
-        return steps[existingIndex];
+      } else {
+        // Create new step
+        step = {
+          id: steps.length + 1,
+          name,
+          status,
+          message,
+          timestamp: new Date().toISOString(),
+        };
+        steps.push(step);
+        job.steps = [...steps]; // Create new array reference
+        job.updatedAt = new Date().toISOString();
+        console.log(`[AnalysisService] Step added: ${name} (${status}) - Total steps: ${steps.length}`);
       }
       
-      // Create new step
-      const step: AnalysisStep = {
-        id: steps.length + 1,
-        name,
-        status,
-        message,
-        timestamp: new Date().toISOString(),
-      };
-      steps.push(step);
-      job.steps = [...steps]; // Create new array reference
-      job.updatedAt = new Date().toISOString();
-      console.log(`[AnalysisService] Step added: ${name} (${status}) - Total steps: ${steps.length}`);
+      // Emit WebSocket update
+      wsService.emitStepUpdate(job.id, step);
+      wsService.emitJobUpdate(job.id, {
+        jobId: job.id,
+        status: job.status,
+        progress: job.progress,
+        branch: job.branch,
+        steps: job.steps,
+        result: job.result,
+        error: job.error,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      });
+      
       return step;
     };
 

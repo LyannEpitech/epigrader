@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { createServer } from 'http';
 
 // Load .env file manually to ensure it's loaded before any other imports
 try {
@@ -25,6 +26,7 @@ import helmet from 'helmet';
 import authRoutes from './routes/auth.js';
 import rubricRoutes from './routes/rubric.js';
 import analyzeRoutes from './routes/analyze.js';
+import { wsService } from './services/websocket.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,7 +83,13 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(PORT, () => {
+// Create HTTP server for both Express and WebSocket
+const server = createServer(app);
+
+// Initialize WebSocket server
+wsService.initialize(server);
+
+server.listen(PORT, () => {
   const actualPort = (server.address() as any).port;
   console.log(`🚀 Server running on http://localhost:${actualPort}`);
   
@@ -94,4 +102,4 @@ const server = app.listen(PORT, () => {
   }
 });
 
-export default app;
+export { app, server };

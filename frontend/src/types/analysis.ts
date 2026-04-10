@@ -9,7 +9,8 @@ export interface AnalysisStep {
 }
 
 export interface AnalysisJob {
-  id: string;
+  id?: string;
+  jobId?: string;
   status: 'pending' | 'processing' | 'completed' | 'error';
   repoUrl: string;
   rubricId: string;
