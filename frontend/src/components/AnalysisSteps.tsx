@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import type { AnalysisStep, AnalysisStatus } from '../types/analysis';
 import { 
   Settings, Shield, Search, GitBranch, Brain, FileCheck, 
@@ -31,7 +31,6 @@ const defaultSteps: AnalysisStep[] = [
 
 export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const currentStepRef = useRef<HTMLDivElement>(null);
 
   // Use real steps if available, otherwise use default steps
   const displaySteps = useMemo(() => 
@@ -42,17 +41,17 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
   const completedCount = displaySteps.filter(s => s.status === 'completed').length;
   const progress = (completedCount / displaySteps.length) * 100;
 
-  // Auto-scroll to current step
-  useEffect(() => {
-    if (currentStepRef.current && containerRef.current) {
-      if (typeof currentStepRef.current.scrollIntoView === 'function') {
-        currentStepRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }
-    }
-  }, [displaySteps]);
+  // Auto-scroll disabled - user can scroll manually
+  // useEffect(() => {
+  //   if (currentStepRef.current && containerRef.current) {
+  //     if (typeof currentStepRef.current.scrollIntoView === 'function') {
+  //       currentStepRef.current.scrollIntoView({
+  //         behavior: 'smooth',
+  //         block: 'center',
+  //       });
+  //     }
+  //   }
+  // }, [displaySteps]);
 
   const getStepStatus = (step: AnalysisStep, index: number) => {
     if (step.status === 'completed') return 'completed';
@@ -108,7 +107,7 @@ export function AnalysisSteps({ steps, currentStatus }: AnalysisStepsProps) {
             return (
               <div
                 key={step.id}
-                ref={isCurrent ? currentStepRef : null}
+
                 className={`relative flex items-start gap-4 p-4 rounded-xl transition-all duration-300 ${
                   isCurrent 
                     ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-md' 
