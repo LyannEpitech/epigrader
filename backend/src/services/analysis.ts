@@ -350,7 +350,7 @@ export class AnalysisService {
     repo: string,
     treeItems: Array<{ path: string; sha?: string }>,
     githubService: GitHubService,
-    maxFiles: number = 50
+    maxFiles: number = 100
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
     const allFilePaths = treeItems.map(item => item.path);
@@ -407,6 +407,7 @@ export class AnalysisService {
       if (path.includes('target/')) return false;
       if (path.includes('bin/')) return false;
       if (path.includes('obj/')) return false;
+      if (path.includes('results/')) return false;  // Exclude generated results
       
       const lowerPath = path.toLowerCase();
       const fileName = lowerPath.split('/').pop() || '';
@@ -423,6 +424,9 @@ export class AnalysisService {
       'Makefile', 'makefile', 'GNUmakefile',
       'main.', 'index.', 'app.', 'server.',
       'package.json', 'Cargo.toml', 'go.mod', 'requirements.txt',
+      '.py',  // Prioritize Python files
+      '.js', '.ts',
+      '.c', '.cpp', '.h',
     ];
     
     const prioritizedFiles = codeFiles.sort((a, b) => {
