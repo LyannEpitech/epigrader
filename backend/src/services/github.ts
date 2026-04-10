@@ -9,7 +9,7 @@ export class GitHubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'EpiGrader/1.0',
     };
-    if (token && token.startsWith('ghp_') && token.length > 10) {
+    if (token && token.length > 10) {
       headers.Authorization = `Bearer ${token}`;
     }
     this.client = axios.create({
