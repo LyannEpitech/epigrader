@@ -198,7 +198,8 @@ export class AnalysisService {
       
       try {
         const tree = await githubService.getRepoTree(owner, repo, treeSha);
-        allFilePaths = tree.filter(item => item.type === 'blob').map(item => item.path);
+        const treeItems = tree.filter(item => item.type === 'blob');
+        allFilePaths = treeItems.map(item => item.path);
         
         // Add branch info to step if specified
         const branchInfo = branch ? ` (branch: ${branch})` : '';
@@ -209,7 +210,7 @@ export class AnalysisService {
         
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
-        repoFiles = await this.fetchRepoFiles(owner, repo, allFilePaths, githubService);
+        repoFiles = await this.fetchRepoFiles(owner, repo, treeItems, githubService);
         addStep('File Filtering', 'completed', `✅ Selected ${repoFiles.length} code files for analysis`);
         
         if (repoFiles.length === 0) {
@@ -312,11 +313,12 @@ export class AnalysisService {
   private async fetchRepoFiles(
     owner: string,
     repo: string,
-    allFilePaths: string[],
+    treeItems: Array<{ path: string; sha?: string }>,
     githubService: GitHubService,
     maxFiles: number = 50
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
+    const allFilePaths = treeItems.map(item => item.path);
     
     // Supported file extensions
     const codeExtensions = [
@@ -401,12 +403,16 @@ export class AnalysisService {
     const filesToFetch = prioritizedFiles.slice(0, maxFiles);
     console.log('[AnalysisService] Files to fetch:', filesToFetch);
     
+    // Create a map of path to sha for quick lookup
+    const shaMap = new Map(treeItems.map(item => [item.path, item.sha]));
+    
     const fileContents = await Promise.all(
       filesToFetch.map(async (filePath) => {
         try {
           console.log('[AnalysisService] Fetching:', filePath);
-          const content = await githubService.getFileContent(owner, repo, filePath);
-          console.log('[AnalysisService] Fetched:', filePath, 'size:', content?.length, 'content preview:', content?.substring(0, 100));
+          const sha = shaMap.get(filePath);
+          const content = await githubService.getFileContent(owner, repo, filePath, sha);
+          console.log('[AnalysisService] Fetched:', filePath, 'size:', content?.length);
           return content ? { path: filePath, content } : null;
         } catch (e: any) {
           console.warn(`[AnalysisService] Failed to fetch ${filePath}:`, e.message);

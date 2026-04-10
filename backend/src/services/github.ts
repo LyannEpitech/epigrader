@@ -67,21 +67,43 @@ export class GitHubService {
     }
   }
 
-  async getFileContent(owner: string, repo: string, path: string): Promise<string> {
+  async getFileContent(owner: string, repo: string, path: string, sha?: string): Promise<string> {
     try {
+      // If sha is provided, use blobs API (for large files)
+      if (sha) {
+        const response = await this.client.get(`/repos/${owner}/${repo}/git/blobs/${sha}`);
+        const content = response.data.content;
+        if (content) {
+          return Buffer.from(content, 'base64').toString('utf-8');
+        }
+        return '';
+      }
+
+      // Otherwise use contents API
       const response = await this.client.get(`/repos/${owner}/${repo}/contents/${path}`);
       const content = response.data.content;
       
       // Handle large files or symlinks that don't have content
       if (!content) {
+        // Try to get sha and use blobs API
+        const sha = response.data.sha;
+        if (sha) {
+          console.log(`[GitHub] File ${path} too large for contents API, using blobs API`);
+          return this.getFileContent(owner, repo, path, sha);
+        }
         console.warn(`[GitHub] No content for ${path} - may be a symlink or large file`);
         return '';
       }
       
       return Buffer.from(content, 'base64').toString('utf-8');
-    } catch (error) {
+    } catch (error: any) {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new Error('File not found');
+      }
+      // Handle 403 errors (too large)
+      if (axios.isAxiosError(error) && error.response?.status === 403) {
+        console.warn(`[GitHub] File ${path} too large or access denied`);
+        return '';
       }
       throw error;
     }
