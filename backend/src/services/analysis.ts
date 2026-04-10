@@ -304,7 +304,7 @@ export class AnalysisService {
     repo: string,
     allFilePaths: string[],
     githubService: GitHubService,
-    maxFiles: number = 30
+    maxFiles: number = 50
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
     

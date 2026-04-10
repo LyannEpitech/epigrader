@@ -30,7 +30,8 @@ export class MoonshotService {
               content: prompt,
             },
           ],
-          temperature: 1,
+          temperature: 0.7,
+          max_tokens: 1000,
         },
         {
           headers: {
@@ -95,17 +96,21 @@ export class MoonshotService {
       .replace(/<!--[\s\S]*?-->/g, ''); // Remove HTML comments
     
     // Remove extra whitespace but preserve structure
-    compressed = compressed
+    let lines = compressed
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line.length > 0) // Remove empty lines
-      .join('\n');
+      .filter(line => line.length > 0); // Remove empty lines
     
-    // Limit consecutive empty lines to 1 (already done above)
-    // Remove trailing whitespace
-    compressed = compressed.replace(/[ \t]+$/gm, '');
+    // Limit to max 300 lines per file to keep prompt size reasonable
+    const maxLines = 300;
+    if (lines.length > maxLines) {
+      // Keep first 150 lines and last 150 lines (usually contains important parts)
+      const firstPart = lines.slice(0, 150);
+      const lastPart = lines.slice(-150);
+      lines = [...firstPart, '\n... [truncated ' + (lines.length - 300) + ' lines] ...\n', ...lastPart];
+    }
     
-    return compressed;
+    return lines.join('\n');
   }
 
   /**
