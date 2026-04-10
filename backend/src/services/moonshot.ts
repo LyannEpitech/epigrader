@@ -30,8 +30,7 @@ export class MoonshotService {
               content: prompt,
             },
           ],
-          temperature: 0.7,
-          max_tokens: 1000,
+          temperature: 1,
         },
         {
           headers: {
