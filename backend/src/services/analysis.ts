@@ -216,36 +216,53 @@ export class AnalysisService {
         throw error;
       }
 
-      // Step 8: Analyze with LLM
-      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria...`);
-      const analyzedCriteria: AnalyzedCriterion[] = [];
+      // Step 8: Analyze with LLM (parallel processing for faster analysis)
+      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria in parallel...`);
       
-      for (let i = 0; i < criteria.length; i++) {
-        const criterion = criteria[i];
-        const stepName = `Analyzing: ${criterion.name}`;
-        addStep(stepName, 'running', `(${i + 1}/${criteria.length}) Analyzing criterion...`);
+      // Process criteria in parallel batches of 3 for optimal speed/quality balance
+      const batchSize = 3;
+      const analyzedCriteria: AnalyzedCriterion[] = new Array(criteria.length);
+      
+      for (let batchStart = 0; batchStart < criteria.length; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, criteria.length);
+        const batch = criteria.slice(batchStart, batchEnd);
         
-        try {
-          const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
-          analyzedCriteria.push(analyzed);
-          addStep(stepName, 'completed', `✅ Score: ${analyzed.score}/${criterion.maxPoints} - ${analyzed.status}`);
-        } catch (error) {
-          addStep(stepName, 'error', `❌ Analysis failed`);
-          analyzedCriteria.push({
-            id: criterion.id,
-            name: criterion.name,
-            description: criterion.description,
-            maxPoints: criterion.maxPoints,
-            score: 0,
-            status: 'failed',
-            justification: 'Analysis failed due to an error',
-            references: [],
-          });
-        }
+        addStep('LLM Analysis', 'running', `Processing batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(criteria.length / batchSize)}...`);
         
-        job.progress = Math.round(((i + 1) / criteria.length) * 80) + 10;
+        // Analyze batch in parallel
+        const batchResults = await Promise.all(
+          batch.map(async (criterion, index) => {
+            try {
+              const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
+              return { index: batchStart + index, criterion: analyzed };
+            } catch (error) {
+              return {
+                index: batchStart + index,
+                criterion: {
+                  id: criterion.id,
+                  name: criterion.name,
+                  description: criterion.description,
+                  maxPoints: criterion.maxPoints,
+                  score: 0,
+                  status: 'failed' as const,
+                  justification: 'Analysis failed due to an error',
+                  references: [],
+                }
+              };
+            }
+          })
+        );
+        
+        // Store results
+        batchResults.forEach(({ index, criterion }) => {
+          analyzedCriteria[index] = criterion;
+        });
+        
+        job.progress = Math.round((batchEnd / criteria.length) * 80) + 10;
         job.updatedAt = new Date().toISOString();
       }
+      
+      addStep('LLM Analysis', 'completed', `✅ Analyzed ${criteria.length} criteria`);
 
       // Step 9: Generate Report
       addStep('Report Generation', 'running', 'Generating final report...');
@@ -287,7 +304,7 @@ export class AnalysisService {
     repo: string,
     allFilePaths: string[],
     githubService: GitHubService,
-    maxFiles: number = 50
+    maxFiles: number = 30
   ): Promise<Array<{ path: string; content: string }>> {
     const files: Array<{ path: string; content: string }> = [];
     
@@ -368,19 +385,21 @@ export class AnalysisService {
       return aPriority - bPriority;
     });
 
-    // Fetch content for each file (limited to maxFiles)
-    for (const filePath of prioritizedFiles.slice(0, maxFiles)) {
-      try {
-        const content = await githubService.getFileContent(owner, repo, filePath);
-        if (content) {
-          files.push({ path: filePath, content });
+    // Fetch content for each file in parallel (limited to maxFiles)
+    const filesToFetch = prioritizedFiles.slice(0, maxFiles);
+    const fileContents = await Promise.all(
+      filesToFetch.map(async (filePath) => {
+        try {
+          const content = await githubService.getFileContent(owner, repo, filePath);
+          return content ? { path: filePath, content } : null;
+        } catch (e) {
+          console.warn(`Failed to fetch ${filePath}:`, e);
+          return null;
         }
-      } catch (e) {
-        console.warn(`Failed to fetch ${filePath}:`, e);
-      }
-    }
+      })
+    );
 
-    return files;
+    return fileContents.filter((f): f is { path: string; content: string } => f !== null);
   }
 
   /**
