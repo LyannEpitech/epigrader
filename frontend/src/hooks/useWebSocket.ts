@@ -2,7 +2,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { AnalysisJob } from '../types/analysis';
 
-const SOCKET_URL = (import.meta as any).env?.VITE_SOCKET_URL || window.location.origin;
+// Use the same host but let Socket.IO handle the port
+// In development, Vite proxy forwards /socket.io to the backend
+const SOCKET_URL = '/';
 
 interface UseWebSocketOptions {
   onJobUpdate?: (job: AnalysisJob) => void;
