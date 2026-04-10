@@ -267,47 +267,62 @@ export class AnalysisService {
       // Step 8: Analyze with LLM (parallel processing for faster analysis)
       addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria in parallel...`);
       
-      // Process criteria in parallel batches of 3 for optimal speed/quality balance
-      const batchSize = 3;
+      // Process all criteria in parallel with concurrency limit
+      const concurrencyLimit = 5; // Process 5 criteria simultaneously
       const analyzedCriteria: AnalyzedCriterion[] = new Array(criteria.length);
+      let completedCount = 0;
       
-      for (let batchStart = 0; batchStart < criteria.length; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, criteria.length);
-        const batch = criteria.slice(batchStart, batchEnd);
+      addStep('LLM Analysis', 'running', `Analyzing ${criteria.length} criteria with ${concurrencyLimit}x parallelism...`);
+      
+      // Process criteria with limited concurrency
+      const processCriterion = async (criterion: Criterion, index: number): Promise<void> => {
+        try {
+          const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
+          analyzedCriteria[index] = analyzed;
+        } catch (error) {
+          analyzedCriteria[index] = {
+            id: criterion.id,
+            name: criterion.name,
+            description: criterion.description,
+            maxPoints: criterion.maxPoints,
+            score: 0,
+            status: 'failed' as const,
+            justification: 'Analysis failed due to an error',
+            references: [],
+          };
+        }
         
-        addStep('LLM Analysis', 'running', `Processing batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(criteria.length / batchSize)}...`);
-        
-        // Analyze batch in parallel
-        const batchResults = await Promise.all(
-          batch.map(async (criterion, index) => {
-            try {
-              const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
-              return { index: batchStart + index, criterion: analyzed };
-            } catch (error) {
-              return {
-                index: batchStart + index,
-                criterion: {
-                  id: criterion.id,
-                  name: criterion.name,
-                  description: criterion.description,
-                  maxPoints: criterion.maxPoints,
-                  score: 0,
-                  status: 'failed' as const,
-                  justification: 'Analysis failed due to an error',
-                  references: [],
-                }
-              };
-            }
-          })
-        );
-        
-        // Store results
-        batchResults.forEach(({ index, criterion }) => {
-          analyzedCriteria[index] = criterion;
-        });
-        
-        job.progress = Math.round((batchEnd / criteria.length) * 80) + 10;
+        completedCount++;
+        job.progress = Math.round((completedCount / criteria.length) * 80) + 10;
         job.updatedAt = new Date().toISOString();
+        
+        // Update step message periodically
+        if (completedCount % 2 === 0 || completedCount === criteria.length) {
+          addStep('LLM Analysis', 'running', `Analyzed ${completedCount}/${criteria.length} criteria...`);
+        }
+      };
+      
+      // Process with concurrency limit
+      const queue = [...criteria.entries()];
+      const running: Promise<void>[] = [];
+      
+      while (queue.length > 0 || running.length > 0) {
+        // Start new tasks up to concurrency limit
+        while (running.length < concurrencyLimit && queue.length > 0) {
+          const [index, criterion] = queue.shift()!;
+          running.push(processCriterion(criterion, index));
+        }
+        
+        // Wait for at least one task to complete
+        if (running.length > 0) {
+          await Promise.race(running);
+          // Remove completed tasks
+          for (let i = running.length - 1; i >= 0; i--) {
+            if (await Promise.race([running[i], Promise.resolve('pending')]) !== 'pending') {
+              running.splice(i, 1);
+            }
+          }
+        }
       }
       
       addStep('LLM Analysis', 'completed', `✅ Analyzed ${criteria.length} criteria`);
