@@ -241,7 +241,9 @@ export class AnalysisService {
         addStep('File Discovery', 'completed', `✅ Found ${allFilePaths.length} total files${branchInfo}`);
         
         // Log all files for debugging
-        console.log('[AnalysisService] All files found:', allFilePaths);
+        console.log('[AnalysisService] All files found:', allFilePaths.length, 'files');
+        console.log('[AnalysisService] Python files:', allFilePaths.filter(p => p.endsWith('.py')));
+        console.log('[AnalysisService] First 20 files:', allFilePaths.slice(0, 20));
         
         // Step 7: Filter and Fetch Code Files
         addStep('File Filtering', 'running', 'Filtering code files...');
@@ -416,7 +418,9 @@ export class AnalysisService {
       return codeExtensions.some(ext => lowerPath.endsWith(ext));
     });
     
-    console.log('[AnalysisService] Files after filtering:', codeFiles.length, codeFiles.slice(0, 10));
+    console.log('[AnalysisService] Files after filtering:', codeFiles.length, 'files');
+    console.log('[AnalysisService] Python files after filtering:', codeFiles.filter(p => p.endsWith('.py')));
+    console.log('[AnalysisService] First 20 filtered files:', codeFiles.slice(0, 20));
 
     // Prioritize important files first
     const priorityOrder = [
