@@ -38,4 +38,14 @@ export const analysisApi = {
     const response = await axios.get(`${API_URL}/analyze/branches?${params.toString()}`);
     return response.data;
   },
+
+  getLLMProviders: async (): Promise<{ providers: Array<{ type: string; name: string; defaultModel: string }>; current: { type: string | null; name: string; configured: boolean } }> => {
+    const response = await axios.get(`${API_URL}/analyze/llm/providers`);
+    return response.data;
+  },
+
+  configureLLM: async (provider: string, apiKey: string, model?: string): Promise<{ success: boolean; provider: any; testResponse: string }> => {
+    const response = await axios.post(`${API_URL}/analyze/llm/configure`, { provider, apiKey, model });
+    return response.data;
+  },
 };

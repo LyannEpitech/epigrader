@@ -1,9 +1,10 @@
 import { AnalysisJob, AnalysisResult, AnalyzedCriterion, AnalysisStep } from '../types/analysis.js';
 import { Criterion } from '../types/rubric.js';
-import { MoonshotService } from './moonshot.js';
+import { AnalysisLLMService } from './analysisLLM.js';
 import { GitHubService } from './github.js';
 import { AnalysisCache } from './cache.js';
 import { wsService } from './websocket.js';
+import { llmService } from './llm/index.js';
 
 // In-memory job storage (replace with Redis/DB in production)
 const jobs = new Map<string, AnalysisJob>();
@@ -13,14 +14,20 @@ const jobs = new Map<string, AnalysisJob>();
 const MAX_JOBS = 100;
 
 export class AnalysisService {
-  private moonshotService: MoonshotService;
+  private analysisLLM: AnalysisLLMService;
   private githubService: GitHubService;
   private cache: AnalysisCache;
 
   constructor() {
-    this.moonshotService = new MoonshotService();
+    this.analysisLLM = new AnalysisLLMService();
     this.githubService = new GitHubService(process.env.GITHUB_TOKEN || '');
     this.cache = new AnalysisCache();
+    
+    // Auto-configure LLM from environment
+    if (!llmService.isConfigured()) {
+      const configured = llmService.autoConfigure();
+      console.log('[AnalysisService] LLM auto-configure result:', configured, llmService.getProviderInfo());
+    }
   }
 
   /**
@@ -277,7 +284,7 @@ export class AnalysisService {
       // Process criteria with limited concurrency
       const processCriterion = async (criterion: Criterion, index: number): Promise<void> => {
         try {
-          const analyzed = await this.moonshotService.analyzeCriterion(criterion, repoFiles);
+          const analyzed = await this.analysisLLM.analyzeCriterion(criterion, repoFiles);
           analyzedCriteria[index] = analyzed;
         } catch (error) {
           analyzedCriteria[index] = {

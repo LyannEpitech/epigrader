@@ -6,6 +6,7 @@ import { AnalysisService } from '../services/analysis.js';
 import { rubricStorage } from '../services/rubricStorage.js';
 import { GitHubService } from '../services/github.js';
 import { AnalysisJob } from '../types/analysis.js';
+import { llmService, LLMProviderFactory } from '../services/llm/index.js';
 
 const router = Router();
 const analysisService = new AnalysisService();
@@ -344,6 +345,68 @@ router.get('/debug/files', async (req, res) => {
     res.status(500).json({
       error: 'Failed to fetch files',
       details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// GET /api/analyze/llm/providers - List available LLM providers
+router.get('/llm/providers', (req, res) => {
+  try {
+    const providers = LLMProviderFactory.getAvailableProviders();
+    const current = llmService.getProviderInfo();
+    
+    res.json({
+      providers,
+      current,
+    });
+  } catch (error) {
+    console.error('Get LLM providers error:', error);
+    res.status(500).json({
+      error: 'Failed to get LLM providers',
+    });
+  }
+});
+
+// POST /api/analyze/llm/configure - Configure LLM provider
+const configureLLMSchema = z.object({
+  provider: z.enum(['mammouth', 'moonshot']),
+  apiKey: z.string().min(1),
+  model: z.string().optional(),
+});
+
+router.post('/llm/configure', async (req, res) => {
+  try {
+    const result = configureLLMSchema.safeParse(req.body);
+    
+    if (!result.success) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: result.error.errors,
+      });
+    }
+
+    const { provider, apiKey, model } = result.data;
+    
+    llmService.configure(provider, {
+      apiKey,
+      model,
+    });
+    
+    // Test the configuration
+    const testResponse = await llmService.chat([
+      { role: 'user', content: 'Hello' },
+    ], { maxTokens: 10 });
+    
+    res.json({
+      success: true,
+      provider: llmService.getProviderInfo(),
+      testResponse: testResponse.content,
+    });
+  } catch (error: any) {
+    console.error('Configure LLM error:', error);
+    res.status(500).json({
+      error: 'Failed to configure LLM',
+      details: error.message,
     });
   }
 });
